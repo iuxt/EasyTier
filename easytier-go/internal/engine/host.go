@@ -27,7 +27,6 @@ const maximumPacketIngressBatch = 32
 type Options struct {
 	Services            platform.Services
 	PacketQueueCapacity int
-	Management          reactor.ManagementHandler
 	LogWriter           io.Writer
 }
 
@@ -45,7 +44,6 @@ type Host struct {
 	mu        sync.Mutex
 	closed    bool
 	instances map[*Instance]struct{}
-	webClient *WebClient
 	closeOnce sync.Once
 	closeDone chan struct{}
 	closeErr  error
@@ -89,8 +87,7 @@ func NewHost(ctx context.Context, options Options) (_ *Host, err error) {
 		return nil, fmt.Errorf("instantiate WASI preview1: %w", err)
 	}
 	hostReactor = reactor.New(lifetime, reactor.Options{
-		Services:   options.Services,
-		Management: options.Management,
+		Services: options.Services,
 	})
 	adapter, err := hostabi.New(hostReactor)
 	if err != nil {
@@ -238,13 +235,12 @@ func (host *Host) Close(ctx context.Context) error {
 	host.closeOnce.Do(func() {
 		host.mu.Lock()
 		host.closed = true
-		webClient := host.webClient
 		instances := make([]*Instance, 0, len(host.instances))
 		for instance := range host.instances {
 			instances = append(instances, instance)
 		}
 		host.mu.Unlock()
-		go host.shutdown(webClient, instances)
+		go host.shutdown(instances)
 	})
 	select {
 	case <-host.closeDone:
@@ -257,13 +253,8 @@ func (host *Host) Close(ctx context.Context) error {
 	}
 }
 
-func (host *Host) shutdown(webClient *WebClient, instances []*Instance) {
+func (host *Host) shutdown(instances []*Instance) {
 	var closeErrors []error
-	if webClient != nil {
-		if err := webClient.Close(host.ctx); err != nil {
-			closeErrors = append(closeErrors, err)
-		}
-	}
 	for _, instance := range instances {
 		if err := instance.Close(host.ctx); err != nil {
 			closeErrors = append(closeErrors, err)
@@ -290,12 +281,6 @@ func (host *Host) broadcastCompletions() {
 		select {
 		case <-host.reactor.Completions():
 			host.mu.Lock()
-			if host.webClient != nil {
-				select {
-				case host.webClient.completions <- struct{}{}:
-				default:
-				}
-			}
 			for instance := range host.instances {
 				select {
 				case instance.completions <- struct{}{}:
@@ -307,14 +292,6 @@ func (host *Host) broadcastCompletions() {
 			return
 		}
 	}
-}
-
-func (host *Host) removeWebClient(client *WebClient) {
-	host.mu.Lock()
-	if host.webClient == client {
-		host.webClient = nil
-	}
-	host.mu.Unlock()
 }
 
 func (host *Host) removeInstance(instance *Instance) {

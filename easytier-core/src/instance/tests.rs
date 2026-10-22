@@ -1390,7 +1390,7 @@ virtual_ip = "10.82.0.2/24"
         instance.peer_manager.clear_resources().await;
     }
 
-    #[cfg(feature = "web-client")]
+    #[cfg(feature = "process-management")]
     #[tokio::test]
     async fn ignored_gateway_patch_remains_in_toml_config() {
         use easytier_proto::{
@@ -1816,7 +1816,7 @@ virtual_ip = "10.82.0.2/24"
             },
         };
         use easytier_proto::{
-            api::manage::{DeleteNetworkInstanceRequest, WebClientService},
+            api::manage::{DeleteNetworkInstanceRequest, ProcessManageRpc},
             rpc_types::controller::BaseController,
         };
 
@@ -1978,7 +1978,7 @@ virtual_ip = "10.82.0.2/24"
         assert!(instances.instances().is_empty());
     }
 
-    #[cfg(feature = "web-client")]
+    #[cfg(feature = "process-management")]
     #[tokio::test]
     async fn process_management_rpc_owns_instance_create_list_and_delete() {
         use crate::{
@@ -1986,14 +1986,14 @@ virtual_ip = "10.82.0.2/24"
             instance::manager::InstanceFactory,
             management::{
                 InstanceManager, ProcessManagementRpc, UnsupportedConfigFileStorage,
-                register_web_client_rpc,
+                register_process_management_rpc,
             },
             rpc::service_registry::ServiceRegistry,
         };
         use easytier_proto::{
             api::manage::{
                 DeleteNetworkInstanceRequest, ListNetworkInstanceRequest, NetworkConfig,
-                NetworkingMethod, RunNetworkInstanceRequest, WebClientService,
+                NetworkingMethod, ProcessManageRpc, RunNetworkInstanceRequest,
             },
             common::RpcDescriptor,
             rpc_types::controller::BaseController,
@@ -2030,7 +2030,7 @@ virtual_ip = "10.82.0.2/24"
             Some(tokio::runtime::Handle::current()),
         ));
         let registry = ServiceRegistry::new();
-        register_web_client_rpc(
+        register_process_management_rpc(
             instances.clone(),
             &registry,
             Arc::new(()),
@@ -2048,8 +2048,8 @@ virtual_ip = "10.82.0.2/24"
         assert_eq!(
             registry.get_method_name(&RpcDescriptor {
                 domain_name: String::new(),
-                service_name: "WebClientService".to_owned(),
-                proto_name: "WebClientService".to_owned(),
+                service_name: "ProcessManageRpc".to_owned(),
+                proto_name: "ProcessManageRpc".to_owned(),
                 method_index: 1,
             }),
             Some("validate_config".to_owned())
@@ -2096,7 +2096,7 @@ virtual_ip = "10.82.0.2/24"
         assert!(instances.instances().is_empty());
     }
 
-    #[cfg(feature = "web-client")]
+    #[cfg(feature = "process-management")]
     #[tokio::test]
     async fn process_management_rpc_collects_only_requested_instances() {
         use std::{collections::VecDeque, sync::Mutex as StdMutex};
@@ -2107,7 +2107,7 @@ virtual_ip = "10.82.0.2/24"
             management::{InstanceManager, ProcessManagementRpc, UnsupportedConfigFileStorage},
         };
         use easytier_proto::{
-            api::manage::{CollectNetworkInfoRequest, WebClientService},
+            api::manage::{CollectNetworkInfoRequest, ProcessManageRpc},
             rpc_types::controller::BaseController,
         };
 
@@ -2413,7 +2413,7 @@ virtual_ip = "10.82.0.2/24"
         };
         use easytier_proto::{
             api::manage::{
-                NetworkConfig, NetworkingMethod, RunNetworkInstanceRequest, WebClientService,
+                NetworkConfig, NetworkingMethod, ProcessManageRpc, RunNetworkInstanceRequest,
             },
             rpc_types::controller::BaseController,
         };

@@ -15,10 +15,7 @@ use easytier_core::gateway::{
 };
 use uuid::Uuid;
 
-use crate::{
-    config_server::{in_config_server_callback, is_config_server_active_or_stopping},
-    state::{ffi_context, resolve_instance_id_by_name},
-};
+use crate::state::{ffi_context, resolve_instance_id_by_name};
 
 type CoreDataPlaneSession = DataPlaneSession<NativeInstanceHost>;
 
@@ -178,27 +175,7 @@ fn next_session_handle(
     ))
 }
 
-fn reject_data_plane_use() -> NativeDataPlaneResult<()> {
-    if in_config_server_callback() {
-        Err(NativeDataPlaneError::invalid(
-            "cannot use data plane from config server callback",
-        ))
-    } else if is_config_server_active_or_stopping() {
-        Err(NativeDataPlaneError::invalid(
-            "cannot use data plane while config server client is active",
-        ))
-    } else {
-        Ok(())
-    }
-}
-
 pub(super) fn open(inst_name: &str) -> NativeDataPlaneResult<u64> {
-    reject_data_plane_use()?;
-    let _usage = DATA_PLANE_USAGE_LOCK
-        .read()
-        .map_err(|error| NativeDataPlaneError::invalid(error.to_string()))?;
-    reject_data_plane_use()?;
-
     let instance_id = resolve_instance_id_by_name(inst_name)
         .map_err(NativeDataPlaneError::invalid)?
         .ok_or_else(|| NativeDataPlaneError::closed("instance not found"))?;
@@ -235,9 +212,6 @@ pub(super) fn open(inst_name: &str) -> NativeDataPlaneResult<u64> {
 }
 
 pub(super) fn close(handle: u64) -> NativeDataPlaneResult<()> {
-    let _usage = DATA_PLANE_USAGE_LOCK
-        .read()
-        .map_err(|error| NativeDataPlaneError::invalid(error.to_string()))?;
     let mut sessions = sessions()?;
     let session = sessions
         .remove(&handle)
@@ -605,42 +579,5 @@ pub(crate) fn remove_data_plane_sessions_by_instance_ids(ids: &[Uuid]) {
     };
     for session in removed {
         session.close();
-    }
-}
-
-pub(crate) fn lock_for_config_server_start()
--> Result<std::sync::RwLockWriteGuard<'static, ()>, String> {
-    let guard = DATA_PLANE_USAGE_LOCK
-        .write()
-        .map_err(|error| format!("failed to lock data plane usage: {error}"))?;
-    if !SESSIONS
-        .lock()
-        .map_err(|error| format!("failed to lock data-plane sessions: {error}"))?
-        .is_empty()
-    {
-        return Err("cannot start config server client while data plane is in use".to_string());
-    }
-    Ok(guard)
-}
-
-#[cfg(test)]
-mod tests {
-    use std::{sync::mpsc, time::Duration};
-
-    use super::*;
-
-    #[test]
-    fn config_server_start_waits_for_session_open_or_close() {
-        let read_guard = DATA_PLANE_USAGE_LOCK.read().unwrap();
-        let (done_tx, done_rx) = mpsc::channel();
-        let waiter = std::thread::spawn(move || {
-            let _write_guard = lock_for_config_server_start().unwrap();
-            done_tx.send(()).unwrap();
-        });
-
-        assert!(done_rx.recv_timeout(Duration::from_millis(100)).is_err());
-        drop(read_guard);
-        done_rx.recv_timeout(Duration::from_secs(5)).unwrap();
-        waiter.join().unwrap();
     }
 }

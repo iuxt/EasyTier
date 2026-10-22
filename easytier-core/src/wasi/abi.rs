@@ -29,10 +29,6 @@ pub const HOST_CRYPTO_AUTH_FAILED: i32 = -10;
 /// Version of the JSON document accepted by `easytier_instance_create`.
 pub const CORE_INSTANCE_CONFIG_VERSION: u32 = 14;
 
-/// Version of the JSON document accepted by `easytier_web_client_create`.
-#[cfg(feature = "management")]
-pub const WEB_CLIENT_CONFIG_VERSION: u32 = 1;
-
 /// Version of the public data-plane guest export contract.
 pub const DATA_PLANE_ABI_VERSION: u32 = 4;
 
@@ -90,17 +86,6 @@ pub const GUEST_EXPORTS: &[&str] = &[
     "easytier_instance_drop",
     "easytier_instance_error_len",
     "easytier_instance_error_copy",
-];
-
-/// Guest exports present when process-level WebClient management is enabled.
-#[cfg(feature = "management")]
-pub const WEB_CLIENT_GUEST_EXPORTS: &[&str] = &[
-    "easytier_web_client_create",
-    "easytier_web_client_drive",
-    "easytier_web_client_notify_completions",
-    "easytier_web_client_next_deadline_millis",
-    "easytier_web_client_is_connected",
-    "easytier_web_client_drop",
 ];
 
 /// Guest exports present when protobuf management RPC is enabled.

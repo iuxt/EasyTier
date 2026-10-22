@@ -2,15 +2,10 @@
 
 MODDIR=${0%/*}
 CONFIG_FILE="${MODDIR}/config/config.toml"
-COMMAND_ARGS="${MODDIR}/config/command_args"
 LOG_FILE="${MODDIR}/log.log"
 MODULE_PROP="${MODDIR}/module.prop"
 EASYTIER="${MODDIR}/easytier-core"
 
-# 处理获取到的设备型号中可能出现的空格
-BRAND=$(getprop ro.product.brand | tr ' ' '-')
-MODEL=$(getprop ro.product.model | tr ' ' '-')
-DEVICE_HOSTNAME="${BRAND}-${MODEL}"
 REDIR_STATUS=""
 
 # 更新 module.prop 文件中的 description
@@ -61,38 +56,15 @@ while true; do
     fi
     
     # 检查配置文件是否存在
-    if [ ! -f "${CONFIG_FILE}" ] && [ ! -f "${COMMAND_ARGS}" ]; then
-        update_module_description "缺少配置文件或启动参数文件"
+    if [ ! -f "${CONFIG_FILE}" ]; then
+        update_module_description "缺少配置文件"
         sleep 10s
         continue
     fi
     
-    # 如果 config 目录下存在 command_args 文件，则读取其中的内容作为启动参数
-    if [ -f "${COMMAND_ARGS}" ]; then
-        # 启动参数模式
-        CMD_CONTENT=$(tr '\r\n' ' ' < "${COMMAND_ARGS}")
-        
-        if echo "${CMD_CONTENT}" | grep -q "\-\-hostname"; then
-            FINAL_ARGS="${CMD_CONTENT}"
-        else
-            FINAL_ARGS="${CMD_CONTENT} --hostname ${DEVICE_HOSTNAME}"
-        fi
-        
-        TZ=Asia/Shanghai "${EASYTIER}" ${FINAL_ARGS} > "${LOG_FILE}" 2>&1 &
-        STR_MODE="启动参数模式"
-        
-        # 否则读取 config.toml 的内容作为启动参数
-    else
-        # 配置文件模式
-        if grep -q "^[[:space:]]*hostname[[:space:]]*=" "${CONFIG_FILE}"; then
-            TZ=Asia/Shanghai "${EASYTIER}" -c "${CONFIG_FILE}" > "${LOG_FILE}" 2>&1 &
-        else
-            TZ=Asia/Shanghai "${EASYTIER}" -c "${CONFIG_FILE}" --hostname "${DEVICE_HOSTNAME}" > "${LOG_FILE}" 2>&1 &
-        fi
-        
-        STR_MODE="配置文件模式"
-    fi
-    
+    "${EASYTIER}" -c "${CONFIG_FILE}" > "${LOG_FILE}" 2>&1 &
+    STR_MODE="配置文件模式"
+
     # 等待进程启动
     sleep 5s
     
@@ -105,7 +77,7 @@ while true; do
         
         update_module_description "主程序正在运行（${STR_MODE}）| ${REDIR_STATUS}"
     else
-        update_module_description "主程序启动失败，请检查配置文件或启动参数"
+        update_module_description "主程序启动失败，请检查配置文件"
     fi
     
     sleep 10s

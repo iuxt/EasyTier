@@ -527,7 +527,7 @@ func TestPublicEventStreamClosesWithInstance(t *testing.T) {
 
 func TestEmbeddedCoreInfoIsPublicWithoutArtifactBytes(t *testing.T) {
 	info := corehost.CoreInfo()
-	if len(info.EasyTierCommit) != 40 {
+	if len(strings.TrimSuffix(info.EasyTierCommit, "-dirty")) != 40 {
 		t.Fatalf("EasyTier commit = %q", info.EasyTierCommit)
 	}
 	if len(info.SHA256) != 64 {

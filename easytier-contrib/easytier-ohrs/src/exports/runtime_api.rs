@@ -9,7 +9,7 @@ use crate::runtime::state::runtime_state::{
     is_tun_attached, mark_tun_attached, runtime_instance_from_config_snapshot,
     runtime_instance_from_running_info,
 };
-use crate::{ASYNC_RUNTIME, INSTANCE_MANAGER, WEB_CLIENTS};
+use crate::{ASYNC_RUNTIME, INSTANCE_MANAGER};
 
 pub(crate) fn start_kernel(
     config_id: String,
@@ -20,15 +20,10 @@ pub(crate) fn start_kernel(
 
 pub(crate) fn stop_kernel(
     config_id: String,
-    stop_web_client: impl Fn(&str) -> bool,
     parse_instance_uuid: impl Fn(&str) -> Option<uuid::Uuid>,
     maybe_stop_local_socket_server: impl Fn(),
 ) -> bool {
     clear_tun_attached(&config_id);
-    if stop_web_client(&config_id) {
-        clear_runtime_config_snapshot(&config_id);
-        return true;
-    }
 
     let _ = stop_local_socket_server_inner();
 
@@ -47,11 +42,7 @@ pub(crate) fn stop_kernel(
         clear_runtime_config_snapshot(&config_id);
     }
     let has_active_instances = !INSTANCE_MANAGER.instance_ids().is_empty();
-    let has_web_clients = WEB_CLIENTS
-        .lock()
-        .map(|guard| !guard.is_empty())
-        .unwrap_or(false);
-    if has_active_instances || has_web_clients {
+    if has_active_instances {
         let _ = start_local_socket_server_inner();
     }
     maybe_stop_local_socket_server();
@@ -140,14 +131,7 @@ pub(crate) fn collect_runtime_state() -> RuntimeAggregateState {
         .into_iter()
         .map(|(instance_id, info)| (instance_id.to_string(), info))
         .collect::<std::collections::HashMap<_, _>>();
-    let mut active_config_ids = live_infos.keys().cloned().collect::<Vec<_>>();
-    if let Ok(guard) = WEB_CLIENTS.lock() {
-        for config_id in guard.keys() {
-            if !active_config_ids.iter().any(|value| value == config_id) {
-                active_config_ids.push(config_id.clone());
-            }
-        }
-    }
+    let active_config_ids = live_infos.keys().cloned().collect::<Vec<_>>();
 
     let mut instances = Vec::with_capacity(active_config_ids.len());
     for config_id in active_config_ids {

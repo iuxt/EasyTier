@@ -14,7 +14,6 @@ impl easytier_core::management::InstanceMutationHooks for FfiOwnedInstanceHooks 
         &self,
         instance_ids: &[uuid::Uuid],
     ) -> Result<(), String> {
-        crate::config_server::remove_config_server_tracked_instance_ids(instance_ids);
         crate::data_plane::remove_data_plane_sessions_by_instance_ids(instance_ids);
         Ok(())
     }

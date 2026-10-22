@@ -4,7 +4,7 @@ SETLOCAL EnableDelayedExpansion
 TITLE Initializing Script...
 CD /d %~dp0
 <NUL SET /p="Checking PowerShell ... "
-WHERE /q PowerShell 
+WHERE /q PowerShell
 IF !ERRORLEVEL! NEQ 0 ( ECHO PowerShell is not installed. & PAUSE & EXIT )
 ECHO OK
 <NUL SET /p="Checking PowerShell version ... "
@@ -15,7 +15,7 @@ ECHO OK
 PowerShell -Command "if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { exit 1 }"
 IF !ERRORLEVEL! NEQ 0 (
     ECHO Fail
-    ECHO Restart with administrator privileges ... 
+    ECHO Restart with administrator privileges ...
     SET args=%*
     IF DEFINED args (
         SET args=!args:'=''!
@@ -48,7 +48,7 @@ param(
     [Parameter(Mandatory = $false)]
     [Alias("x")]
     [switch]$Uninstall,
-    
+
     [Parameter(Mandatory = $false)]
     [Alias("ughp")]
     [switch]$UseGitHubProxy = $false,
@@ -244,8 +244,8 @@ function Get-InputWithFileValidation {
         [string]$Prompt
     )
     while ($true) {
-        try {         
-            $filePath = (Get-InputWithNoNullOrWhiteSpace -Prompt $Prompt).Trim()  
+        try {
+            $filePath = (Get-InputWithNoNullOrWhiteSpace -Prompt $Prompt).Trim()
             if (-not (Test-Path $filePath)) {
                 Write-Host "文件不存在: $filePath" -ForegroundColor Red
                 continue
@@ -463,7 +463,7 @@ function Get-EasyTier {
     }
 
     Write-Host "准备就绪，开始更新..." -ForegroundColor Green
-            
+
     $activeServices = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq "Running" }
     if ($activeServices) {
         try {
@@ -506,87 +506,14 @@ function Get-EasyTier {
 $HelpText = @"
 EasyTier 服务管理脚本
 
-【使用方式】
-直接双击运行或在命令行中执行:
+install.cmd                  选择本地 TOML 配置文件并安装服务
+install.cmd -Update          更新程序
+install.cmd -Uninstall       卸载服务
+install.cmd -Help            显示帮助
 
-    install.cmd [参数]
-
-【可用参数】
-
-    -H / -? / -Help
-        显示此帮助信息并退出。
-
-    -U / -Update
-        更新 EasyTier 到最新版本
-
-    -X / -Uninstall
-        卸载 EasyTier 服务
-
-    -UGHP / -UseGitHubProxy
-        使用 GitHub 镜像代理下载 (默认: $false)
-
-    -GHP / -GitHubProxy <代理地址>
-        指定 GitHub 镜像代理地址 (默认: https://ghfast.top/)
-
-    -UP / -UseProxy
-        使用自定义代理 (默认: $false)
-
-    -P / -Proxy <代理地址>
-        指定自定义代理地址 (默认: http://127.0.0.1:7890)
-
-    -C / -ConfigType <类型>
-        指定配置模式，可选值: 
-        * File   本地配置文件
-        * Remote 远程服务器集中管理
-        * CLI    使用命令行直接传参
-
-    -N / -ServiceName <名称>
-        指定安装的服务名称 (默认: EasyTierService)
-
-    <其他参数...>
-        当选择 CLI 模式时，用于传递自定义参数
-
-【运行要求】
-    * 已安装 PowerShell 3.0 或更高版本
-    * 管理员权限 (自动检测并可请求提升)
-
-【配置模式说明】
-    1. File 模式: 
-        从指定的本地配置文件加载运行参数
-        脚本会提示输入配置文件路径 (可拖入文件)
-
-    2. Remote 模式: 
-        从服务器集中管理配置，可输入自定义管理服务器地址
-        (例如: udp://x.x.x.x:22020/admin)
-
-    3. CLI 模式: 
-        直接通过命令行参数传递任意配置
-
-【代理设置说明】
-    * UseGitHubProxy 和 UseProxy 参数不能同时使用
-    * 使用 GitHub 镜像代理可加速下载
-
-【示例】
-    1. 使用本地配置文件安装: 
-        install.cmd -ConfigType File
-
-    2. 使用远程服务器并设定服务名称: 
-        install.cmd -ConfigType Remote -ServiceName EasyTierService
-
-    3. 使用命令行传参: 
-        install.cmd -ConfigType CLI --ipv4 x.x.x.x --network-name xxx --network-secret yyy --peers tcp://peer_host:11010
-
-    4. 使用 GitHub 镜像代理更新: 
-        install.cmd -Update -UseGitHubProxy
-
-    5. 使用系统代理安装: 
-        install.cmd -UseProxy -Proxy http://127.0.0.1:8080
-
-    6. 卸载服务: 
-        install.cmd -Uninstall
-
-    7. 显示帮助信息: 
-        install.cmd -Help
+所有服务运行配置只从所选文件读取。安装命令只为 easytier-core 指定 -c FILE。
+可使用 -ServiceName 指定服务名，-UseGitHubProxy 或 -UseProxy 配置下载代理。
+需要管理员权限及 PowerShell 3.0 或更高版本。
 "@
 $WatchDogTemplate = @"
 <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
@@ -682,41 +609,9 @@ try {
     if (-not (Test-Path $EasyTierPath)) {
         Get-EasyTier
     }
-    if (-not $ConfigType) {
-        $choices = @(
-            [System.Management.Automation.Host.ChoiceDescription]::new("&File", "本地配置文件"),
-            [System.Management.Automation.Host.ChoiceDescription]::new("&Remote", "服务器集中管理"),
-            [System.Management.Automation.Host.ChoiceDescription]::new("&CLI", "命令行传参")
-        )
-        $selected = $Host.UI.PromptForChoice("您准备如何配置EasyTier?", "请选择: ", $choices, 0)
-        $ConfigType = @("File", "Remote", "CLI")[$selected]
-    }
-    switch ($ConfigType) {
-        "File" {
-            $OPTIONS += "--config-file $(Get-InputWithFileValidation -Prompt "配置文件路径(或将文件拖动到此处)")"
-        }
-        "Remote" {
-            if (Show-YesNoPrompt -Message "是否使用自定义管理服务器？" -DefaultIndex 1) {
-                $configServer = Get-InputWithNoNullOrWhiteSpace -Prompt "自定义管理服务器(格式: 协议://IP:端口/用户)" 
-            }
-            else {
-                $configServer = Get-InputWithNoNullOrWhiteSpace -Prompt "官方服务器用户名"
-            }
-            $OPTIONS += "--config-server $configServer"
-        } 
-        "CLI" {
-            if (-not $ServiceArgs -or $ServiceArgs.Count -eq 0) {
-                $OPTIONS += Get-InputWithNoNullOrWhiteSpace -Prompt "自定义启动参数" 
-            }
-            else {
-                $OPTIONS += $ServiceArgs
-            }
-        }
-        default {
-            throw "未知配置类型: $ConfigType"
-        }
-    }
-    $BinaryPath = "`"$EasyTierPath`" $($OPTIONS -join ' ')" 
+    $configPath = Get-InputWithFileValidation -Prompt "TOML 配置文件路径(或将文件拖动到此处)"
+    $OPTIONS += "-c `"$configPath`""
+    $BinaryPath = "`"$EasyTierPath`" $($OPTIONS -join ' ')"
     Write-Host "生成的配置参数如下: " -ForegroundColor Yellow
     Write-Host ($OPTIONS -join " ") -ForegroundColor DarkGray
     if (Show-YesNoPrompt -Message "确认安装配置？" -DefaultIndex 1) {

@@ -19,7 +19,7 @@ const (
 )
 
 // SetLogLevel changes logging for this Host, including all its instances and
-// its WebClient. It can be called before any instance is created.
+// its instances. It can be called before any instance is created.
 func (host *Host) SetLogLevel(ctx context.Context, level LogLevel) error {
 	if host == nil {
 		return fmt.Errorf("set log level with nil EasyTier host")

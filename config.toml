@@ -1,0 +1,279 @@
+# EasyTier Core 全量配置模板（中文注释）
+# 使用前请修改 network_identity 中的网络名称和密钥；可选功能默认保持注释。
+# 启动：easytier-core，默认读取【可执行文件所在目录】的 config.toml。
+# 指定文件：easytier-core -c /path/to/custom.toml
+# 检查配置：easytier-core -c /path/to/custom.toml --check-config
+# 只支持 TOML 文件；不再接受网络、日志等启动参数，也不读取 ET_* / RUST_LOG。
+# 文件中的 $VAR、${VAR}、~ 均按字面值处理，不做环境变量或主目录展开。
+# -c 的相对路径相对于启动工作目录；文件内路径相对于该配置文件所在目录。
+# 修改配置后重启进程生效；日志及 [core] 设置只从主配置文件读取。
+# “全量”指覆盖当前模型的所有可配置项；示例值不一定是默认值。
+# 某些功能需要编译时启用对应 feature，并受操作系统能力限制。
+
+# -------------------- 本地网络实例 --------------------
+# 实例显示名称；不填时使用程序默认名称。
+instance_name = "easytier"
+# 节点主机名；省略时由运行时提供，最长保留 32 个字符。
+# hostname = "my-node"
+# 固定实例 UUID；省略时自动生成。多实例必须使用不同 UUID。
+# instance_id = "42dbed4a-5455-4dbe-933e-6469c28823b5"
+# Linux 网络命名空间名称；通常不需要设置。
+# netns = "my-netns"
+
+# IPv4 自动分配：false 关闭，true 使用默认网段，也可写 "10.144.0.0/16"。
+dhcp = true
+# IPv6 自动分配：false 关闭，true 自动选网段，也可写 "fd00:144::/64"。
+dhcpv6 = false
+# 静态虚拟地址；使用静态地址时应关闭相应 DHCP。显式写出掩码。
+# ipv4 = "10.144.0.1/16"
+# ipv6 = "fd00:144::1/64"
+# 允许本节点向网络提供公网 IPv6 地址池（需相应 feature）。
+ipv6_public_addr_provider = false
+# 自动从本机接口选择可提供的公网 IPv6 前缀。
+ipv6_public_addr_auto = false
+# 手动指定向网络提供的公网 IPv6 前缀；实际使用时替换为分配给自己的前缀。
+# ipv6_public_addr_prefix = "2001:db8:1234::/64"
+
+# 监听地址必须是完整 URL；空数组 [] 表示不监听入站连接。
+# 其他示例：ws://0.0.0.0:11011、wss://0.0.0.0:11012、wg://0.0.0.0:11013、
+# quic://0.0.0.0:11014、faketcp://0.0.0.0:11015、udp://[::]:11010。
+listeners = ["tcp://0.0.0.0:11010", "udp://0.0.0.0:11010"]
+# 公网端口映射后的可达地址，用于通告；不会创建本地监听或自动配置路由器。
+mapped_listeners = []
+# mapped_listeners = ["tcp://vpn.example.com:21110", "udp://vpn.example.com:21110"]
+# 指定虚拟网络中可作为出口的节点地址。
+exit_nodes = []
+# exit_nodes = ["10.144.0.254"]
+# 手动指定要安装的 IPv4 路由；省略时自动收集网络路由，[] 表示不装自动路由。
+# routes = ["10.144.0.0/16", "192.168.10.0/24"]
+# 本地 SOCKS5 代理监听；删除或注释即关闭，建议绑定回环地址。
+# socks5_proxy = "socks5://127.0.0.1:1080"
+
+# IPv4 UDP STUN 服务；省略使用内置列表，[] 禁用，可填写多项 host:port。
+# stun_servers = ["stun.example.com:3478"]
+# IPv6 UDP STUN 服务；省略使用内置列表。
+# stun_servers_v6 = ["stun.example.com:3478"]
+# TCP STUN 服务；省略使用内置列表。
+# tcp_stun_servers = ["stun.example.com:3478"]
+# TCP/UDP 子网代理目标端口白名单，支持单端口或范围；省略时不限制。
+# tcp_whitelist = ["22", "80", "443", "8000-9000"]
+# udp_whitelist = ["53", "10000-20000"]
+# 凭据节点使用的 JSON 凭据文件路径；通常与 secure_mode.enabled = true 配合。
+# 使用凭据模式时删除 network_identity.network_secret，由凭据提供访问权限。
+# credential_file = "credentials/node.json"
+
+[network_identity]
+# 同一虚拟网络的节点应使用相同名称与密钥。
+network_name = "my-network"
+# 请替换为足够长的随机密钥，不要直接使用模板中的值。
+network_secret = "CHANGE-ME-use-a-long-random-secret"
+
+# -------------------- 主动连接的对端 --------------------
+# 每增加一个对端，复制一个 [[peer]]；无对端时保持整个示例注释。
+# [[peer]]
+# uri = "tcp://vpn.example.com:11010"
+# 安全模式下可固定对端的 Base64 X25519 公钥；不需要时省略。
+# peer_public_key = "REPLACE_WITH_PEER_PUBLIC_KEY"
+# [[peer]]
+# uri = "udp://vpn.example.com:11010"
+
+# -------------------- 子网代理 --------------------
+# 每个共享子网使用一段 [[proxy_network]]，并确保本机可以访问该真实子网。
+# [[proxy_network]]
+# cidr = "192.168.10.0/24"
+# 可选：将真实子网映射到另一个等长掩码网段，避免地址冲突。
+# mapped_cidr = "10.200.10.0/24"
+# 可选：仅允许这些 ACL 组使用此代理；省略时不按组限制。
+# allow = ["office"]
+
+# -------------------- 端口转发 --------------------
+# 将本地监听端口转发到虚拟网络内的地址，每条规则使用一段 [[port_forward]]。
+# [[port_forward]]
+# proto = "tcp"                    # tcp 或 udp
+# bind_addr = "127.0.0.1:2222"      # 本地监听地址
+# dst_addr = "10.144.0.2:22"        # 虚拟网络中的目标地址
+
+# -------------------- 安全模式 --------------------
+[secure_mode]
+enabled = false
+# Base64 X25519 私钥和对应公钥；指定私钥时必须同时提供匹配的公钥。
+# 两项均省略时由运行时处理密钥。不要将真实私钥提交到代码仓库。
+# local_private_key = "REPLACE_WITH_PRIVATE_KEY"
+# local_public_key = "REPLACE_WITH_PUBLIC_KEY"
+
+# 管理节点预置的凭据，每条凭据使用一段 [[managed_credentials]]。
+# 凭据密钥及标识需由实际管理流程签发，不能直接使用示例值。
+# [[managed_credentials]]
+# credential_id = "REPLACE_WITH_CREDENTIAL_ID"       # 凭据标识
+# credential_secret = "REPLACE_WITH_CREDENTIAL_SECRET" # 凭据密钥
+# groups = ["office"]                              # 授予的 ACL 组
+# allow_relay = false                              # 是否允许作为中继
+# allowed_proxy_cidrs = ["192.168.10.0/24"]          # 可通告的代理网段
+# expiry_unix = 1893456000                          # 到期 Unix 时间戳（秒）
+# reusable = true                                  # 是否允许并发复用，默认 true
+
+# -------------------- WireGuard VPN 门户 --------------------
+# 需要 wireguard/vpn-portal 支持；启用时至少配置一个客户端。
+# [vpn_portal_config]
+# enabled = true
+# wireguard_listen = "0.0.0.0:11013"                # 本地 WireGuard 监听地址
+# wireguard_private_key = "REPLACE_WITH_PRIVATE_KEY" # 稳定的 Base64 私钥，可省略
+# [[vpn_portal_config.clients]]
+# name = "phone"                                   # 客户端名称
+# virtual_ip = "10.144.0.5/16"                      # 独立虚拟节点地址，必须包含掩码
+# groups = ["office"]                              # ACL 组，可留空
+
+# -------------------- 网络功能开关（全部现行字段） --------------------
+[flags]
+# 默认传输协议。
+default_protocol = "tcp"
+# TUN 接口名称；空字符串表示使用系统默认名称。
+dev_name = ""
+# 是否加密数据。
+enable_encryption = true
+# 是否启用 IPv6 底层连接。
+enable_ipv6 = true
+# 虚拟网卡 MTU。
+mtu = 1380
+# 路由是否优先选择低延迟路径。
+latency_first = false
+# 是否允许本节点为其他节点提供出口访问。
+enable_exit_node = false
+# 不创建 TUN，适用于纯中继或用户态代理。
+no_tun = false
+# 使用用户态 smoltcp 协议栈处理代理。
+use_smoltcp = false
+# 允许中继的网络名称匹配规则，以空格分隔；"*" 允许全部，"" 禁止。
+relay_network_whitelist = "*"
+# 禁用节点间 P2P 直连。
+disable_p2p = false
+# 允许转发全部对端 RPC。
+relay_all_peer_rpc = false
+# 禁用 UDP 打洞。
+disable_udp_hole_punching = false
+# 使用多线程运行实例。
+multi_thread = true
+# 多线程工作线程数。
+multi_thread_count = 2
+# 数据压缩算法："None" 或 "Zstd"（需要对应 feature）。
+data_compress_algo = "None"
+# 底层套接字是否绑定网络设备。
+bind_device = true
+# 启用 KCP 代理。
+enable_kcp_proxy = false
+# 禁止接收 KCP 代理流量。
+disable_kcp_input = false
+# 禁止中继本网络 KCP 代理流量。
+disable_relay_kcp = false
+# 使用系统协议栈转发子网代理流量。
+proxy_forward_by_system = false
+# 启用 Magic DNS。
+accept_dns = false
+# 私有模式。
+private_mode = false
+# 启用 QUIC 代理。
+enable_quic_proxy = false
+# 禁止接收 QUIC 代理流量。
+disable_quic_input = false
+# 禁止中继本网络 QUIC 代理流量。
+disable_relay_quic = false
+# 外部网络中继带宽上限，单位字节/秒；省略使用默认无限制。
+# foreign_relay_bps_limit = 104857600
+# 允许中继其他网络的 KCP 流量。
+enable_relay_foreign_network_kcp = false
+# 允许中继其他网络的 QUIC 流量。
+enable_relay_foreign_network_quic = false
+# 加密算法：aes-gcm、aes-256-gcm、chacha20、xor；可用性取决于编译 feature。
+encryption_algorithm = "aes-gcm"
+# 禁用对称 NAT 打洞。
+disable_sym_hole_punching = false
+# Magic DNS 的顶级域，建议保留末尾的点。
+tld_dns_zone = "et.net."
+# 仅使用 P2P 连接。
+p2p_only = false
+# 禁用 TCP 打洞。
+disable_tcp_hole_punching = false
+# 按需建立 P2P 连接。
+lazy_p2p = false
+# 要求建立 P2P 连接。
+need_p2p = false
+# 实例接收带宽上限，单位字节/秒；省略使用默认无限制。
+# instance_recv_bps_limit = 104857600
+# 禁用 UPnP/NAT-PMP 自动映射。
+disable_upnp = false
+# 禁止中继数据流量。
+disable_relay_data = false
+# 启用 UDP 广播中继。
+enable_udp_broadcast_relay = false
+# Linux 出站套接字 SO_MARK；省略不设置，显式 0 表示清零，需 CAP_NET_ADMIN。
+# socket_mark = 0
+# 优先使用已直连且具有中继权限的凭据节点作为中继。
+prefer_peer_relay = false
+# 已废弃的 quic_listen_port 不属于现行配置，请在 listeners 中写 QUIC 地址。
+
+# -------------------- ACL 访问控制 --------------------
+# 所有 ACL 示例默认注释；启用后按实际需求设置规则和默认动作。
+# 协议枚举："TCP"、"UDP"、"ICMP"、"ICMPv6"、"Any"、"Unspecified"。
+# 动作枚举："Allow"、"Drop"、"Noop"。
+# [acl.acl_v1.group]
+# members = ["office"]                             # 本节点所属组
+# [[acl.acl_v1.group.declares]]
+# group_name = "office"                            # 声明的组名称
+# group_secret = "REPLACE_WITH_GROUP_SECRET"        # 组认证密钥
+# [[acl.acl_v1.chains]]
+# name = "inbound"                                 # 链名称
+# chain_type = "Inbound"                           # Inbound / Outbound / Forward
+# description = "入站访问规则"
+# enabled = true                                   # 是否启用此链
+# default_action = "Allow"                         # 未匹配规则时的动作
+# [[acl.acl_v1.chains.rules]]
+# name = "allow-office-ssh"
+# description = "允许办公组访问 SSH"
+# priority = 100                                   # 优先级，数值越大越优先
+# enabled = true
+# protocol = "TCP"
+# ports = ["22"]                                   # 目标端口或端口范围
+# source_ips = ["10.144.0.0/16"]                    # 源地址范围
+# destination_ips = ["10.144.0.1/32"]               # 目标地址范围
+# source_ports = []                                # 源端口范围，空为不限
+# action = "Allow"
+# rate_limit = 0                                   # 每秒包数限制，0 为不限
+# burst_limit = 0                                  # 突发包额度
+# stateful = true                                  # 启用连接跟踪
+# source_groups = ["office"]                       # 源组
+# destination_groups = []                          # 目标组，空为不限
+
+# -------------------- 配置来源元数据 --------------------
+# 本地手写配置通常省略；仅保留本地来源。
+# [source]
+# source = "user"
+
+# -------------------- 进程与管理入口（仅主配置文件生效） --------------------
+[core]
+# 守护模式：没有网络字段时保持进程存活，等待管理接口创建实例。
+# 主文件包含网络字段时仍启动该网络。此开关不会让进程自动转入后台。
+daemon = false
+# 管理 RPC 地址，省略使用程序默认回环地址；建议仅向受信网络开放。
+rpc_portal = "127.0.0.1:15888"
+# 可选：允许访问管理 RPC 的来源网段。
+# rpc_portal_whitelist = ["127.0.0.0/8", "::1/128"]
+# 额外网络配置目录；读取其中所有 .toml 文件，自动跳过主配置本身。
+# 目录内文件只提供网络配置，不覆盖本文件的日志和 [core] 设置。
+# config_dir = "networks"
+# -------------------- 日志（仅主配置文件生效） --------------------
+[console_logger]
+# 控制台日志级别：off、error、warn、info、debug、trace。
+# 省略 level 时默认仅输出核心模块的 info 日志。
+level = "info"
+
+[file_logger]
+# 文件日志级别；默认 off，可按需改为 info/debug。
+level = "off"
+# 日志目录，相对于主配置文件；省略时为主配置文件所在目录。
+dir = "logs"
+# 日志文件名，默认 easytier.log。
+file = "easytier.log"
+# 单个日志文件大小上限（MiB），默认 100；同时启用按日轮转。
+size_mb = 100
+# 最多保留的日志文件数量，默认 10。
+count = 10

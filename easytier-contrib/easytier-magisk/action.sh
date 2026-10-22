@@ -30,12 +30,8 @@ if [ -f "${MODDIR}/disable" ]; then
 
 elif pgrep -f "${MODDIR}/easytier-core" >/dev/null; then
     IS_RUNNING=true
-    if [ -f "${MODDIR}/config/command_args" ]; then
-        ET_STATUS="主程序正在运行（启动参数模式）"
-    else
-        ET_STATUS="主程序正在运行（配置文件模式）"
-    fi
-    
+    ET_STATUS="主程序正在运行（配置文件模式）"
+
 elif [ -z "$ET_STATUS" ]; then
     # 既没 disable 也没运行，说明是异常停止或未启动
     ET_STATUS="主程序启动失败或未运行"

@@ -214,14 +214,14 @@ pub(crate) struct CredentialManager {
 }
 
 /// A validated managed credential replacement awaiting installation.
-#[cfg(feature = "web-client")]
+#[cfg(feature = "process-management")]
 pub(crate) struct ManagedCredentialReplacement<'a> {
     manager: &'a CredentialManager,
     changed: bool,
     installed: bool,
 }
 
-#[cfg(feature = "web-client")]
+#[cfg(feature = "process-management")]
 impl Drop for ManagedCredentialReplacement<'_> {
     fn drop(&mut self) {
         if self.changed && !self.installed {
@@ -627,7 +627,7 @@ impl CredentialManager {
     /// duplicate IDs/keys, conflicts with base/ephemeral credentials). Must
     /// run before the candidate is persisted so a rejected patch never
     /// reaches disk.
-    #[cfg(feature = "web-client")]
+    #[cfg(feature = "process-management")]
     pub fn validate_managed_credentials(
         &self,
         credentials: &[ManagedCredentialConfig],
@@ -651,7 +651,7 @@ impl CredentialManager {
 
     /// Installs a replacement whose IDs and public keys were reserved by
     /// [`Self::validate_managed_credentials`].
-    #[cfg(feature = "web-client")]
+    #[cfg(feature = "process-management")]
     pub fn install_managed_credentials(mut replacement: ManagedCredentialReplacement<'_>) -> bool {
         if !replacement.changed {
             return false;
@@ -1236,7 +1236,7 @@ mod tests {
         assert!(storage.serialized.lock().unwrap().is_none());
     }
 
-    #[cfg(feature = "web-client")]
+    #[cfg(feature = "process-management")]
     #[test]
     fn managed_credentials_work_without_base_storage_and_expire_in_place() {
         let manager = CredentialManager::new();
@@ -1263,7 +1263,7 @@ mod tests {
         assert!(manager.list_credentials().is_empty());
     }
 
-    #[cfg(feature = "web-client")]
+    #[cfg(feature = "process-management")]
     #[test]
     fn pending_managed_replacement_reserves_ids_and_public_keys() {
         let manager = CredentialManager::new();
@@ -1305,7 +1305,7 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "web-client")]
+    #[cfg(feature = "process-management")]
     #[test]
     fn managed_and_base_credentials_must_be_disjoint() {
         let manager = CredentialManager::new();

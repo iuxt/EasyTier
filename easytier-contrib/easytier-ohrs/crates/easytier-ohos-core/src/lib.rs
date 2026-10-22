@@ -8,7 +8,7 @@ use once_cell::sync::Lazy;
 use std::sync::Arc;
 use tokio::runtime::{Builder, Runtime};
 
-/// The single Tokio runtime that owns HarmonyOS kernel and web-client work.
+/// The single Tokio runtime that owns HarmonyOS kernel work.
 pub static ASYNC_RUNTIME: Lazy<Runtime> = Lazy::new(|| {
     Builder::new_multi_thread()
         .enable_all()

@@ -20,7 +20,7 @@ mod file;
 #[cfg(feature = "management")]
 mod management;
 #[cfg(feature = "management")]
-pub use management::{init, init_with_default_console_targets};
+pub use management::{init, init_from_config_file, init_with_default_console_targets};
 mod tracing_backend;
 
 use file::FileSink;
@@ -117,8 +117,11 @@ impl TargetFilter {
         if level == Some(LevelFilter::Off) {
             return Ok(Self::off());
         }
+        Self::from_environment(Self::console_defaults(level, default_targets))
+    }
 
-        let fallback = match level {
+    fn console_defaults(level: Option<LevelFilter>, default_targets: &[&str]) -> Self {
+        match level {
             Some(level) => Self::with_default(level),
             None => Self {
                 default: LevelFilter::Off,
@@ -127,8 +130,7 @@ impl TargetFilter {
                     .map(|target| ((*target).into(), LevelFilter::Info))
                     .collect(),
             },
-        };
-        Self::from_environment(fallback)
+        }
     }
 
     fn off() -> Self {
@@ -528,6 +530,26 @@ mod tests {
     fn default_file_logger_is_not_opened_without_reload() {
         let file = FileSink::from_config(FileLoggerConfig::default(), false).unwrap();
         assert!(!file.is_open());
+    }
+
+    #[test]
+    #[cfg(feature = "management")]
+    #[serial_test::serial]
+    fn file_config_logging_ignores_rust_log_even_after_level_changes() {
+        let _env = EnvVarGuard::set(Some("trace"));
+        let console = TargetFilter::console_defaults(Some(LevelFilter::Warn), &[LOG_TARGET]);
+        assert!(!console.enabled(LOG_TARGET, Level::Info));
+        let dir = tempfile::tempdir().unwrap();
+        let config = FileLoggerConfig {
+            level: Some("warn".to_owned()),
+            dir: Some(dir.path().to_string_lossy().into_owned()),
+            ..Default::default()
+        };
+        let file = FileSink::from_config_with_environment(config, true, false).unwrap();
+        assert_eq!(file.max_level(), LevelFilter::Warn);
+        let logger = Logger::new(console, file);
+        logger.set_file_level(LevelFilter::Info).unwrap();
+        assert_eq!(logger.file.max_level(), LevelFilter::Info);
     }
 
     #[test]

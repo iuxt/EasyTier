@@ -1,295 +1,63 @@
 # EasyTier
 
-[![Github release](https://img.shields.io/github/v/tag/EasyTier/EasyTier)](https://github.com/EasyTier/EasyTier/releases)
-[![GitHub](https://img.shields.io/github/license/EasyTier/EasyTier)](https://github.com/EasyTier/EasyTier/blob/main/LICENSE)
-[![GitHub last commit](https://img.shields.io/github/last-commit/EasyTier/EasyTier)](https://github.com/EasyTier/EasyTier/commits/main)
-[![GitHub issues](https://img.shields.io/github/issues/EasyTier/EasyTier)](https://github.com/EasyTier/EasyTier/issues)
-[![GitHub Core Actions](https://github.com/EasyTier/EasyTier/actions/workflows/core.yml/badge.svg)](https://github.com/EasyTier/EasyTier/actions/workflows/core.yml)
-[![GitHub GUI Actions](https://github.com/EasyTier/EasyTier/actions/workflows/gui.yml/badge.svg)](https://github.com/EasyTier/EasyTier/actions/workflows/gui.yml)
-[![GitHub Test Actions](https://github.com/EasyTier/EasyTier/actions/workflows/test.yml/badge.svg)](https://github.com/EasyTier/EasyTier/actions/workflows/test.yml)
-[<img src="https://devin.ai/assets/askdeepwiki.png" alt="Ask DeepWiki" height="20"/>](https://deepwiki.com/EasyTier/EasyTier)
+[简体中文](README_CN.md) | [English](README.md)
 
-[简体中文](/README_CN.md) | [English](/README.md)
+EasyTier is a cross-platform P2P network built with Rust and Tokio. It supports encryption, NAT traversal, subnet proxies, relaying, Magic DNS and WireGuard portals.
 
-> ✨ A simple, secure, decentralized virtual private network solution powered by Rust and Tokio
+## Build
 
-<p align="center">
-<img src="assets/config-page.png" width="300" alt="config page">
-<img src="assets/running-page.png" width="300" alt="running page">
-</p>
-
-📚 **[Full Documentation](https://easytier.cn/en/)** | 🖥️ **[Web Console](https://easytier.cn/web)** | 📝 **[Download Releases](https://github.com/EasyTier/EasyTier/releases)** | **[Nightly](https://github.com/EasyTier/EasyTier/releases/tag/nightly)** | 🧩 **[Third Party Tools](https://easytier.cn/en/guide/installation_gui.html#third-party-graphical-interfaces)** | ❤️ **[Sponsor](#sponsor)**
-
-## Features
-
-### Core Features
-
-- 🔒 **Decentralized**: Nodes are equal and independent, no centralized services required  
-- 🚀 **Easy to Use**: Multiple operation methods via web, client, and command line  
-- 🌍 **Cross-Platform**: Supports Win/MacOS/Linux/FreeBSD/Android and X86/ARM/MIPS architectures  
-- 🔐 **Secure**: AES-GCM or WireGuard encryption, prevents man-in-the-middle attacks  
-
-### Advanced Capabilities
-
-- 🔌 **Efficient NAT Traversal**: Supports UDP and IPv6 traversal, works with NAT4-NAT4 networks  
-- 🌐 **Subnet Proxy**: Nodes can share subnets for other nodes to access  
-- 🔄 **Intelligent Routing**: Latency priority and automatic route selection for best network experience  
-- ⚡ **High Performance**: Zero-copy throughout the entire link, supports TCP/UDP/WSS/WG protocols  
-
-### Network Optimization
-
-- 📊 **UDP Loss Resistance**: KCP/QUIC proxy optimizes latency and bandwidth in high packet loss environments  
-- 🔧 **Web Management**: Easy configuration and monitoring through web interface  
-- 🛠️ **Zero Config**: Simple deployment with statically linked executables  
-
-## Quick Start
-
-### 📥 Installation
-
-Choose the installation method that best suits your needs:
-
-Linux (Recommended):
-```bash
-curl -fsSL "https://github.com/EasyTier/EasyTier/blob/main/script/install.sh?raw=true" | sudo bash -s install
-```
-
-Homebrew (MacOS/Linux):
-```bash
-brew tap brewforge/chinese
-brew install --cask easytier-gui
-```
-
-Windows (Recommended, run with administrator privileges):
-```powershell
-irm "https://github.com/EasyTier/EasyTier/blob/main/script/install.ps1?raw=true" | iex
-```
-
-Install via cargo (Latest development version): 
-```bash
-cargo install --git https://github.com/EasyTier/EasyTier.git easytier
-```
-
-Install prebuilt CLI tools with [cargo-binstall](https://github.com/cargo-bins/cargo-binstall) (specify an existing release version):
-```bash
-cargo binstall --git https://github.com/EasyTier/EasyTier.git --version 2.6.4 easytier
-```
-
-This installs `easytier-core` and `easytier-cli` using the repository's metadata, independently of crates.io publication. On Windows, also copy the DLL and driver files from the matching release ZIP beside the installed binaries; binstall only installs executables.
-
-[Install pre-built binary](https://github.com/EasyTier/EasyTier/releases) (Recommended, All platforms supported)
-
-For a smaller executable, try [easytier-mini](https://github.com/EasyTier/easytier-mini), which supports basic TCP/UDP networking. See its documentation for supported features and usage.
-
-[Install via Docker](https://easytier.cn/en/guide/installation.html#installation-methods)
-
-[Install OpenWrt ipk package](https://github.com/EasyTier/luci-app-easytier)
-
-Additional steps:
-
-[One-Click Register Service](https://easytier.cn/en/guide/network/oneclick-install-as-service.html) (Automatically start when the system boots and run in the background)
-
-### 🚀 Basic Usage
-
-#### Quick Networking with Shared Nodes
-
-EasyTier supports quick networking using shared public nodes. When you don't have a public IP, you can use the free shared nodes provided by the EasyTier community. Nodes will automatically attempt NAT traversal and establish P2P connections. When P2P fails, data will be relayed through shared nodes.
-
-When using shared nodes, each node entering the network needs to provide the same `--network-name` and `--network-secret` parameters as the unique identifier of the network.
-
-Taking two nodes as an example (Please use more complex network name to avoid conflicts):
-
-1. Run on Node A:
+Install Rust 1.95, the Protocol Buffers compiler and platform C/C++ build tools.
 
 ```bash
-# Run with administrator privileges
-sudo easytier-core -d --network-name abc --network-secret abc -p tcp://<SharedNodeIP>:11010
+cargo build -p easytier --release --bins
 ```
 
-2. Run on Node B:
+This produces `easytier-core` and the local management tool `easytier-cli`.
+
+## Configure and start
+
+All core startup settings come from a TOML file. [config.toml](config.toml) is the complete template with Chinese comments, including optional network, logging, security, ACL and gateway settings.
 
 ```bash
-# Run with administrator privileges
-sudo easytier-core -d --network-name abc --network-secret abc -p tcp://<SharedNodeIP>:11010
+cp config.toml target/release/config.toml
+# Edit the network name, secret and peers before starting.
+sudo ./target/release/easytier-core
+# Select another file, or validate without starting networking.
+sudo ./target/release/easytier-core -c /etc/easytier/config.toml
+./target/release/easytier-core -c /etc/easytier/config.toml --check-config
 ```
 
-After successful execution, you can check the network status using `easytier-cli`:
+The default is `config.toml` beside the executable, regardless of the working directory. Environment variables and network/logging startup arguments are no longer accepted. Stdin is not a configuration source. `$VAR`, `${VAR}` and `~` remain literal. A relative `-c` path uses the working directory; paths inside a file use that file's directory. Missing, unreadable or invalid files cause an error.
 
-```text
-| ipv4         | hostname       | cost  | lat_ms | loss_rate | rx_bytes | tx_bytes | tunnel_proto | nat_type | id         | version         |
-| ------------ | -------------- | ----- | ------ | --------- | -------- | -------- | ------------ | -------- | ---------- | --------------- |
-| 10.126.126.1 | abc-1          | Local | *      | *         | *        | *        | udp          | FullCone | 439804259  | 2.6.2-70e69a38~ |
-| 10.126.126.2 | abc-2          | p2p   | 3.452  | 0         | 17.33 kB | 20.42 kB | udp          | FullCone | 390879727  | 2.6.2-70e69a38~ |
-|              | PublicServer_a | p2p   | 27.796 | 0.000     | 50.01 kB | 67.46 kB | tcp          | Unknown  | 3771642457 | 2.6.2-70e69a38~ |
+Process settings belong to `[core]`, with logging in `[console_logger]` and `[file_logger]`. `[core].config_dir` loads additional network files; only the main file supplies process and logging settings. The Web server, outbound Web configuration clients, desktop GUI and mobile GUI have been removed. SDKs retain TOML text interfaces for embedded hosts.
+
+## Connect two nodes
+
+Node A:
+
+```toml
+instance_name = "node-a"
+ipv4 = "10.144.0.1/16"
+listeners = ["tcp://0.0.0.0:11010", "udp://0.0.0.0:11010"]
+
+[network_identity]
+network_name = "my-network"
+network_secret = "replace-with-a-long-random-secret"
 ```
 
-You can test connectivity between nodes:
+On Node B, use the same identity, set `ipv4 = "10.144.0.2/16"`, and add:
+
+```toml
+[[peer]]
+uri = "udp://NODE_A_PUBLIC_IP:11010"
+```
+
+Start both nodes with `easytier-core -c /path/to/config.toml`. Add further peers or public relay endpoints with additional `[[peer]]` sections. See the template for subnet proxies and WireGuard portals.
 
 ```bash
-# Test connectivity
-ping 10.126.126.1
-ping 10.126.126.2
-```
-
-Note: If you cannot ping through, it may be that the firewall is blocking incoming traffic. Please turn off the firewall or add allow rules.
-
-To improve availability, you can connect to multiple shared nodes simultaneously:
-
-```bash
-# Connect to multiple shared nodes
-sudo easytier-core -d --network-name abc --network-secret abc -p tcp://<SharedNodeIP1>:11010 -p udp://<SharedNodeIP2>:11010
-```
-
-Once your network is set up successfully, you can easily configure it to start automatically on system boot. Refer to the [One-Click Register Service guide](https://easytier.cn/en/guide/network/oneclick-install-as-service.html) for step-by-step instructions on registering EasyTier as a system service.
-
-#### Decentralized Networking
-
-EasyTier is fundamentally decentralized, with no distinction between server and client. As long as one device can communicate with any node in the virtual network, it can join the virtual network. Here's how to set up a decentralized network:
-
-1. Start First Node (Node A):
-
-```bash
-# Start the first node
-sudo easytier-core -i 10.144.144.1
-```
-
-After startup, this node will listen on the following ports by default:
-- TCP: 11010
-- UDP: 11010
-- WebSocket: 11011
-- WebSocket SSL: 11012
-- WireGuard: 11013
-
-2. Connect Second Node (Node B):
-
-```bash
-# Connect to the first node using its public IP
-sudo easytier-core -i 10.144.144.2 -p udp://FIRST_NODE_PUBLIC_IP:11010
-```
-
-3. Verify Connection:
-
-```bash
-# Test connectivity
-ping 10.144.144.2
-
-# View connected peers
 easytier-cli peer
-
-# View routing information
 easytier-cli route
-
-# View local node information
-easytier-cli node
-```
-
-For more nodes to join the network, they can connect to any existing node in the network using the `-p` parameter:
-
-```bash
-# Connect to any existing node using its public IP
-sudo easytier-core -i 10.144.144.3 -p udp://ANY_EXISTING_NODE_PUBLIC_IP:11010
-```
-
-### 🔍 Advanced Features
-
-#### Subnet Proxy
-
-Assuming the network topology is as follows, Node B wants to share its accessible subnet 10.1.1.0/24 with other nodes:
-
-```mermaid
-flowchart LR
-
-subgraph Node A Public IP 22.1.1.1
-nodea[EasyTier<br/>10.144.144.1]
-end
-
-subgraph Node B
-nodeb[EasyTier<br/>10.144.144.2]
-end
-
-id1[[10.1.1.0/24]]
-
-nodea <--> nodeb <-.-> id1
-```
-
-To share a subnet, add the `-n` parameter when starting EasyTier:
-
-```bash
-# Share subnet 10.1.1.0/24 with other nodes
-sudo easytier-core -i 10.144.144.2 -n 10.1.1.0/24
-```
-
-Subnet proxy information will automatically sync to each node in the virtual network, and each node will automatically configure the corresponding route. You can verify the subnet proxy setup:
-
-1. Check if the routing information has been synchronized (the proxy_cidrs column shows the proxied subnets):
-
-```bash
-# View routing information
-easytier-cli route
-```
-
-![Routing Information](/assets/image-3.png)
-
-2. Test if you can access nodes in the proxied subnet:
-
-```bash
-# Test connectivity to proxied subnet
-ping 10.1.1.2
-```
-
-#### WireGuard Integration
-
-EasyTier can act as a WireGuard server, allowing any device with a WireGuard client (including iOS and Android) to access the EasyTier network. Here's an example setup:
-
-```mermaid
-flowchart LR
-
-ios[[iPhone<br/>WireGuard Installed]]
-
-subgraph Node A Public IP 22.1.1.1
-nodea[EasyTier<br/>10.144.144.1]
-end
-
-subgraph Node B
-nodeb[EasyTier<br/>10.144.144.2]
-end
-
-id1[[10.1.1.0/24]]
-
-ios <-.-> nodea <--> nodeb <-.-> id1
-```
-
-1. Start EasyTier with WireGuard portal enabled:
-
-```bash
-# Register one WireGuard client as virtual peer 10.144.144.3
-sudo easytier-core -i 10.144.144.1 \
-  --network-secret portal-secret \
-  --vpn-portal wg://0.0.0.0:11013 \
-  --vpn-portal-private-key "$(wg genkey)" \
-  --vpn-portal-client phone=10.144.144.3
-```
-
-2. Get WireGuard client configuration:
-
-```bash
-# Get WireGuard client configuration
-easytier-cli vpn-portal
-```
-
-3. In the output configuration, replace a wildcard `Peer.Endpoint` with the
-   public IP/domain of your EasyTier node, then import it. `Interface.Address`
-   is local to that WireGuard client and may be changed to any IPv4 address;
-   EasyTier translates it to the registered virtual-peer address.
-
-#### Self-Hosted Public Shared Node
-
-You can run your own public shared node to help other nodes discover each other. A public shared node is just a regular EasyTier network (with same network name and secret) that other networks can connect to.
-
-To run a public shared node:
-
-```bash
-# No need to specify IPv4 address for public shared nodes
-sudo easytier-core --network-name mysharednode --network-secret mysharednode
+ping 10.144.0.2
 ```
 
 ## Related Projects

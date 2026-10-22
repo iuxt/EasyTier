@@ -40,14 +40,9 @@ use config::services::share_link_service::{
 };
 use config::storage::config_meta::get_config_display_name;
 use easytier::common::config::NetworkConfigExt;
+use easytier::common::config::{ConfigLoader, TomlConfigLoader};
 use easytier::common::constants::EASYTIER_VERSION;
-use easytier::common::{
-    MachineIdOptions,
-    config::{ConfigLoader, TomlConfigLoader},
-};
 use easytier::proto::api::manage::NetworkConfig;
-use easytier::proto::api::manage::NetworkingMethod;
-use easytier::web_client::{WebClient, WebClientHooks, run_web_client};
 use easytier_ohos_core::runtime;
 use easytier_ohos_core::{ASYNC_RUNTIME, INSTANCE_MANAGER};
 use easytier_ohos_features::config;
@@ -62,9 +57,7 @@ use napi_types::{
     SnapshotImportResult, SocketProtectionRequest,
 };
 use runtime::state::runtime_state::{RuntimeAggregateState, RuntimeInstanceState};
-use std::collections::{HashMap, HashSet};
 use std::format;
-use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
 pub(crate) fn feature_log_sink(level: i32, target: &str, message: &str) {
@@ -75,287 +68,19 @@ pub(crate) fn feature_log_enabled(level: i32) -> bool {
     platform::logging::log_manager::app_log_enabled(level)
 }
 
-static WEB_CLIENTS: once_cell::sync::Lazy<Mutex<HashMap<String, ManagedWebClient>>> =
-    once_cell::sync::Lazy::new(|| Mutex::new(HashMap::new()));
-const PRO_CONFIG_SERVER_CLIENT_ID: &str = "__easytier_pro_config_server_client__";
-
-#[derive(Default)]
-struct TrackedWebClientHooks {
-    instance_ids: Mutex<HashSet<Uuid>>,
-    network_names_by_instance_id: Mutex<HashMap<Uuid, String>>,
-    events: Mutex<Vec<serde_json::Value>>,
-}
-
-struct ManagedWebClient {
-    _client: WebClient,
-    hooks: Arc<TrackedWebClientHooks>,
-}
-
-fn network_name_for_instance(id: &Uuid) -> Option<String> {
-    INSTANCE_MANAGER
-        .config(*id)
-        .map(|config| config.get_network_identity().network_name)
-        .filter(|name| !name.trim().is_empty())
-}
-
-#[async_trait::async_trait]
-impl WebClientHooks for TrackedWebClientHooks {
-    async fn post_run_network_instance(&self, id: &Uuid) -> Result<(), String> {
-        self.instance_ids
-            .lock()
-            .map_err(|err| err.to_string())?
-            .insert(*id);
-        let network_name = network_name_for_instance(id);
-        if let Some(network_name) = &network_name {
-            self.network_names_by_instance_id
-                .lock()
-                .map_err(|err| err.to_string())?
-                .insert(*id, network_name.clone());
-        }
-        self.events
-            .lock()
-            .map_err(|err| err.to_string())?
-            .push(serde_json::json!({
-                "event": "run_network_instance",
-                "success": true,
-                "instance_id": id.to_string(),
-                "instance_name": id.to_string(),
-                "network_name": network_name,
-            }));
-        Ok(())
-    }
-
-    async fn post_remove_network_instances(&self, ids: &[Uuid]) -> Result<(), String> {
-        let mut guard = self.instance_ids.lock().map_err(|err| err.to_string())?;
-        let mut events = self.events.lock().map_err(|err| err.to_string())?;
-        let mut network_names_by_instance_id = self
-            .network_names_by_instance_id
-            .lock()
-            .map_err(|err| err.to_string())?;
-        for id in ids {
-            guard.remove(id);
-            let network_name = network_names_by_instance_id.remove(id);
-            events.push(serde_json::json!({
-                "event": "delete_network_instance",
-                "success": true,
-                "instance_id": id.to_string(),
-                "instance_name": id.to_string(),
-                "network_name": network_name,
-            }));
-        }
-        Ok(())
-    }
-}
-
-fn is_config_server_config(config: &NetworkConfig) -> bool {
-    matches!(
-        NetworkingMethod::try_from(config.networking_method.unwrap_or_default())
-            .unwrap_or_default(),
-        NetworkingMethod::PublicServer
-    ) && config
-        .public_server_url
-        .as_ref()
-        .is_some_and(|url| !url.trim().is_empty())
-}
-
-fn stop_web_client(config_id: &str) -> bool {
-    let managed = match WEB_CLIENTS.lock() {
-        Ok(mut guard) => guard.remove(config_id),
-        Err(err) => {
-            ohrs_log_error!("[Rust] stop_web_client lock failed {}", err);
-            return false;
-        }
-    };
-
-    let Some(managed) = managed else {
-        return false;
-    };
-
-    let tracked_ids = managed
-        .hooks
-        .instance_ids
-        .lock()
-        .map(|guard| guard.iter().copied().collect::<Vec<_>>())
-        .unwrap_or_default();
-    drop(managed);
-
-    if tracked_ids.is_empty() {
-        maybe_stop_local_socket_server();
-        return true;
-    }
-
-    let ret = ASYNC_RUNTIME
-        .block_on(INSTANCE_MANAGER.delete_network_instances(tracked_ids))
-        .map(|_| true)
-        .unwrap_or_else(|err| {
-            ohrs_log_error!(
-                "[Rust] stop config server instances failed {}: {}",
-                config_id,
-                err
-            );
-            false
-        });
-    maybe_stop_local_socket_server();
-    ret
-}
-
 fn ensure_local_socket_server_started() -> bool {
     start_local_socket_server_inner()
 }
 
 fn maybe_stop_local_socket_server() {
     let no_local_instances = INSTANCE_MANAGER.instance_ids().is_empty();
-    let no_web_clients = WEB_CLIENTS
-        .lock()
-        .map(|guard| guard.is_empty())
-        .unwrap_or(false);
-    if no_local_instances && no_web_clients {
+    if no_local_instances {
         let _ = stop_local_socket_server_inner();
     }
 }
 
-fn run_config_server_instance(config_id: &str, config: &NetworkConfig) -> bool {
-    if !INSTANCE_MANAGER.instance_ids().is_empty() {
-        ohrs_log_error!("[Rust] there is a running instance!");
-        return false;
-    }
-
-    let Some(config_server_url) = config.public_server_url.clone() else {
-        ohrs_log_error!("[Rust] public_server_url missing for config server mode");
-        return false;
-    };
-    let hooks = Arc::new(TrackedWebClientHooks::default());
-    let secure_mode = config
-        .secure_mode
-        .as_ref()
-        .map(|mode| mode.enabled)
-        .unwrap_or(false);
-    let hostname = config.hostname.clone();
-
-    if !ensure_local_socket_server_started() {
-        return false;
-    }
-
-    let client = ASYNC_RUNTIME.block_on(run_web_client(
-        &config_server_url,
-        MachineIdOptions::default(),
-        hostname,
-        secure_mode,
-        INSTANCE_MANAGER.clone(),
-        Some(hooks.clone()),
-    ));
-
-    let client = match client {
-        Ok(client) => client,
-        Err(err) => {
-            ohrs_log_error!("[Rust] start config server failed {}", err);
-            return false;
-        }
-    };
-
-    match WEB_CLIENTS.lock() {
-        Ok(mut guard) => {
-            guard.insert(
-                config_id.to_string(),
-                ManagedWebClient {
-                    _client: client,
-                    hooks,
-                },
-            );
-            true
-        }
-        Err(err) => {
-            ohrs_log_error!("[Rust] store config server client failed {}", err);
-            false
-        }
-    }
-}
-
-fn run_config_server_client(
-    url: &str,
-    hostname: Option<String>,
-    machine_id: Option<String>,
-    secure_mode: bool,
-) -> bool {
-    let trimmed_url = url.trim();
-    if trimmed_url.is_empty() {
-        ohrs_log_error!("[Rust] config server url missing");
-        return false;
-    }
-
-    let _ = stop_web_client(PRO_CONFIG_SERVER_CLIENT_ID);
-    let hooks = Arc::new(TrackedWebClientHooks::default());
-
-    if !ensure_local_socket_server_started() {
-        return false;
-    }
-
-    let machine_id_opts = MachineIdOptions {
-        explicit_machine_id: machine_id.filter(|value| !value.trim().is_empty()),
-        state_dir: None,
-    };
-    let client = ASYNC_RUNTIME.block_on(run_web_client(
-        trimmed_url,
-        machine_id_opts,
-        hostname.filter(|value| !value.trim().is_empty()),
-        secure_mode,
-        INSTANCE_MANAGER.clone(),
-        Some(hooks.clone()),
-    ));
-
-    let client = match client {
-        Ok(client) => client,
-        Err(err) => {
-            ohrs_log_error!("[Rust] start pro config server client failed {}", err);
-            return false;
-        }
-    };
-
-    match WEB_CLIENTS.lock() {
-        Ok(mut guard) => {
-            guard.insert(
-                PRO_CONFIG_SERVER_CLIENT_ID.to_string(),
-                ManagedWebClient {
-                    _client: client,
-                    hooks,
-                },
-            );
-            true
-        }
-        Err(err) => {
-            ohrs_log_error!("[Rust] store pro config server client failed {}", err);
-            false
-        }
-    }
-}
-
-fn pro_config_server_client_connected() -> bool {
-    WEB_CLIENTS
-        .lock()
-        .ok()
-        .and_then(|guard| {
-            guard
-                .get(PRO_CONFIG_SERVER_CLIENT_ID)
-                .map(|managed| managed._client.is_connected())
-        })
-        .unwrap_or(false)
-}
-
-fn drain_config_server_events_inner() -> Vec<serde_json::Value> {
-    let Ok(guard) = WEB_CLIENTS.lock() else {
-        return Vec::new();
-    };
-    let Some(managed) = guard.get(PRO_CONFIG_SERVER_CLIENT_ID) else {
-        return Vec::new();
-    };
-    let Ok(mut events) = managed.hooks.events.lock() else {
-        return Vec::new();
-    };
-    events.drain(..).collect()
-}
-
 fn stop_runtime_inner() -> bool {
-    let mut ok = stop_web_client(PRO_CONFIG_SERVER_CLIENT_ID);
+    let mut ok = true;
     let ids = INSTANCE_MANAGER.instance_ids();
     if !ids.is_empty() {
         ok = ASYNC_RUNTIME
@@ -372,15 +97,9 @@ fn stop_runtime_inner() -> bool {
     ok
 }
 
-fn is_pro_internal_instance(instance: &RuntimeInstanceState) -> bool {
-    instance.instance_id == PRO_CONFIG_SERVER_CLIENT_ID
-        || instance.config_id == PRO_CONFIG_SERVER_CLIENT_ID
-        || instance.display_name == PRO_CONFIG_SERVER_CLIENT_ID
-}
-
 fn runtime_instance_label(instance: &RuntimeInstanceState) -> String {
     let display_name = instance.display_name.trim();
-    if !display_name.is_empty() && display_name != PRO_CONFIG_SERVER_CLIENT_ID {
+    if !display_name.is_empty() {
         return display_name.to_string();
     }
     let instance_id = instance.instance_id.trim();
@@ -436,25 +155,19 @@ fn find_runtime_instance<'a>(
     selector: Option<&str>,
 ) -> Option<&'a RuntimeInstanceState> {
     if let Some(selector) = selector
-        && let Some(instance) = state.instances.iter().find(|instance| {
-            !is_pro_internal_instance(instance) && runtime_instance_matches(instance, selector)
-        })
+        && let Some(instance) = state
+            .instances
+            .iter()
+            .find(|instance| runtime_instance_matches(instance, selector))
     {
         return Some(instance);
     }
-    state
-        .instances
-        .iter()
-        .find(|instance| !is_pro_internal_instance(instance) && instance.running)
+    state.instances.iter().find(|instance| instance.running)
 }
 
 fn list_instances_json_inner(state: &RuntimeAggregateState) -> String {
     let mut instances = serde_json::Map::new();
-    for instance in state
-        .instances
-        .iter()
-        .filter(|instance| !is_pro_internal_instance(instance) && instance.running)
-    {
+    for instance in state.instances.iter().filter(|instance| instance.running) {
         let label = runtime_instance_label(instance);
         if !label.trim().is_empty() {
             instances.insert(
@@ -464,128 +177,6 @@ fn list_instances_json_inner(state: &RuntimeAggregateState) -> String {
         }
     }
     serde_json::Value::Object(instances).to_string()
-}
-
-fn list_pro_instances_json_inner(
-    state: &RuntimeAggregateState,
-    network_names_by_instance_id: &HashMap<String, String>,
-) -> String {
-    let mut instances = serde_json::Map::new();
-    for instance in state.instances.iter().filter(|instance| instance.running) {
-        let Some(network_name) = network_names_by_instance_id.get(&instance.instance_id) else {
-            continue;
-        };
-        let label = if network_name.trim().is_empty() {
-            instance.instance_id.clone()
-        } else {
-            network_name.clone()
-        };
-        instances.insert(
-            label,
-            serde_json::Value::String(instance.instance_id.clone()),
-        );
-    }
-    serde_json::Value::Object(instances).to_string()
-}
-
-fn find_pro_runtime_instance<'a>(
-    state: &'a RuntimeAggregateState,
-    network_names_by_instance_id: &HashMap<String, String>,
-    selector: Option<&str>,
-) -> Option<(&'a RuntimeInstanceState, String)> {
-    let mut tracked_instances = state.instances.iter().filter_map(|instance| {
-        let network_name = network_names_by_instance_id.get(&instance.instance_id)?;
-        Some((instance, network_name))
-    });
-    if let Some(selector) = selector {
-        return tracked_instances
-            .filter(|(instance, _)| instance.running)
-            .find(|(instance, network_name)| {
-                selector == network_name.as_str() || runtime_instance_matches(instance, selector)
-            })
-            .map(|(instance, network_name)| (instance, network_name.clone()));
-    }
-    tracked_instances
-        .find(|(instance, _)| instance.running)
-        .map(|(instance, network_name)| (instance, network_name.clone()))
-}
-
-fn call_pro_json_rpc_inner(
-    state: &RuntimeAggregateState,
-    network_names_by_instance_id: &HashMap<String, String>,
-    service_name: &str,
-    method_name: &str,
-    payload_json: &str,
-) -> String {
-    let selector = selected_instance_from_payload(payload_json);
-    let Some((instance, network_name)) =
-        find_pro_runtime_instance(state, network_names_by_instance_id, selector.as_deref())
-    else {
-        return "{}".to_string();
-    };
-
-    let method = method_name.trim();
-    let service = service_name.trim();
-    let response = match (service, method) {
-        (_, "show_node_info") => serde_json::json!({
-            "node_info": instance.my_node_info,
-        }),
-        (_, "list_route") => serde_json::json!({
-            "routes": instance.routes,
-        }),
-        (_, "list_peer") => serde_json::json!({
-            "my_info": instance.my_node_info,
-            "peer_infos": instance.peers,
-        }),
-        (_, "get_stats") => {
-            let mut rx_bytes = 0_i64;
-            let mut tx_bytes = 0_i64;
-            for peer in &instance.peers {
-                for conn in &peer.conns {
-                    if let Some(stats) = &conn.stats {
-                        rx_bytes = rx_bytes.saturating_add(stats.rx_bytes);
-                        tx_bytes = tx_bytes.saturating_add(stats.tx_bytes);
-                    }
-                }
-            }
-            serde_json::json!({
-                "metrics": [
-                    {
-                        "name": "traffic_bytes_self_rx",
-                        "labels": { "network_name": network_name },
-                        "value": rx_bytes,
-                    },
-                    {
-                        "name": "traffic_bytes_self_tx",
-                        "labels": { "network_name": network_name },
-                        "value": tx_bytes,
-                    }
-                ]
-            })
-        }
-        _ => serde_json::json!({}),
-    };
-    response.to_string()
-}
-
-fn pro_runtime_registry_snapshot() -> HashMap<String, String> {
-    WEB_CLIENTS
-        .lock()
-        .ok()
-        .and_then(|clients| {
-            clients
-                .get(PRO_CONFIG_SERVER_CLIENT_ID)
-                .and_then(|managed| managed.hooks.network_names_by_instance_id.lock().ok())
-                .map(|registry| {
-                    registry
-                        .iter()
-                        .map(|(instance_id, network_name)| {
-                            (instance_id.to_string(), network_name.clone())
-                        })
-                        .collect()
-                })
-        })
-        .unwrap_or_default()
 }
 
 fn call_json_rpc_inner(service_name: &str, method_name: &str, payload_json: &str) -> String {
@@ -644,9 +235,10 @@ fn resolve_instance_id_from_state(
     state: &RuntimeAggregateState,
     instance_name: &str,
 ) -> Option<String> {
-    let instance = state.instances.iter().find(|instance| {
-        !is_pro_internal_instance(instance) && runtime_instance_matches(instance, instance_name)
-    })?;
+    let instance = state
+        .instances
+        .iter()
+        .find(|instance| runtime_instance_matches(instance, instance_name))?;
     Some(instance.instance_id.clone())
 }
 
@@ -677,18 +269,6 @@ pub(crate) fn run_network_instance_from_json(cfg_json: &str) -> bool {
             return false;
         }
     };
-
-    if is_config_server_config(&config) {
-        let Some(config_id) = config.instance_id.as_deref() else {
-            ohrs_log_error!("[Rust] config server config missing instance id");
-            return false;
-        };
-        let started = run_config_server_instance(config_id, &config);
-        if started {
-            cache_runtime_config_snapshot(config_id.to_string(), config_id.to_string(), config);
-        }
-        return started;
-    }
 
     let cfg = match config.gen_config() {
         Ok(toml) => toml,
@@ -851,7 +431,6 @@ pub fn start_kernel(config_id: String) -> bool {
 pub fn stop_kernel(config_id: String) -> bool {
     exports::runtime_api::stop_kernel(
         config_id,
-        stop_web_client,
         parse_instance_uuid,
         maybe_stop_local_socket_server,
     )
@@ -863,33 +442,8 @@ pub fn stop_network_instance(config_ids: Vec<String>) -> bool {
 }
 
 #[napi]
-pub fn start_config_server_client(
-    url: String,
-    hostname: Option<String>,
-    machine_id: Option<String>,
-    secure_mode: Option<bool>,
-) -> bool {
-    run_config_server_client(&url, hostname, machine_id, secure_mode.unwrap_or(false))
-}
-
-#[napi]
-pub fn stop_config_server_client() -> bool {
-    stop_web_client(PRO_CONFIG_SERVER_CLIENT_ID)
-}
-
-#[napi]
-pub fn is_config_server_client_connected() -> bool {
-    pro_config_server_client_connected()
-}
-
-#[napi]
 pub fn stop_runtime() -> bool {
     stop_runtime_inner()
-}
-
-#[napi]
-pub fn drain_config_server_events() -> String {
-    serde_json::to_string(&drain_config_server_events_inner()).unwrap_or_else(|_| "[]".to_string())
 }
 
 #[napi]
@@ -903,30 +457,8 @@ pub fn list_instances_json() -> String {
 }
 
 #[napi]
-pub fn list_pro_instances_json() -> String {
-    let registry = pro_runtime_registry_snapshot();
-    list_pro_instances_json_inner(&collect_runtime_state_inner(), &registry)
-}
-
-#[napi]
 pub fn call_json_rpc(service_name: String, method_name: String, payload_json: String) -> String {
     call_json_rpc_inner(&service_name, &method_name, &payload_json)
-}
-
-#[napi]
-pub fn call_pro_json_rpc(
-    service_name: String,
-    method_name: String,
-    payload_json: String,
-) -> String {
-    let registry = pro_runtime_registry_snapshot();
-    call_pro_json_rpc_inner(
-        &collect_runtime_state_inner(),
-        &registry,
-        &service_name,
-        &method_name,
-        &payload_json,
-    )
 }
 
 #[napi]
@@ -1135,7 +667,7 @@ mod tests {
         );
     }
 
-    fn pro_test_state() -> RuntimeAggregateState {
+    fn local_test_state() -> RuntimeAggregateState {
         RuntimeAggregateState {
             instances: vec![
                 RuntimeInstanceState {
@@ -1182,40 +714,9 @@ mod tests {
         }
     }
 
-    fn pro_test_registry() -> HashMap<String, String> {
-        HashMap::from([(
-            "0c4b33ba-4ed5-42d8-9095-21b786c66e94".to_string(),
-            "office-network".to_string(),
-        )])
-    }
-
-    #[test]
-    fn pro_instance_list_uses_registry_network_name_and_excludes_untracked_instances() {
-        assert_eq!(
-            list_pro_instances_json_inner(&pro_test_state(), &pro_test_registry()),
-            r#"{"office-network":"0c4b33ba-4ed5-42d8-9095-21b786c66e94"}"#,
-        );
-    }
-
-    #[test]
-    fn pro_json_rpc_selects_instance_by_network_name_and_labels_traffic() {
-        let response = call_pro_json_rpc_inner(
-            &pro_test_state(),
-            &pro_test_registry(),
-            "api.instance.StatsRpcService",
-            "get_stats",
-            r#"{"instance":{"instance_selector":{"name":"office-network"}}}"#,
-        );
-        let response: serde_json::Value = serde_json::from_str(&response).unwrap();
-        assert_eq!(
-            response["metrics"][0]["labels"]["network_name"],
-            "office-network",
-        );
-    }
-
     #[test]
     fn resolve_instance_id_does_not_fall_back_for_unknown_selector() {
-        let state = pro_test_state();
+        let state = local_test_state();
         assert_eq!(
             resolve_instance_id_from_state(&state, "0c4b33ba-4ed5-42d8-9095-21b786c66e94"),
             Some("0c4b33ba-4ed5-42d8-9095-21b786c66e94".to_string()),

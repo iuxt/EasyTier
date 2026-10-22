@@ -214,7 +214,7 @@ would then replay the complete chunk. The replacement still completes writes
 inside the guest, but uses cancellation-safe underlying writes and reports a
 completed prefix before observing cancellation or deadline expiry.
 
-WebClient retry, feature timeout, heartbeat, and UDP port-mapping renewal
+UDP port-mapping renewal
 timers now use the tracked portable time abstraction. This lets an externally
 driven host advertise and advance their deadlines without adding a periodic
 timer-driving fallback.

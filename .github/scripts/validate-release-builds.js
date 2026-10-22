@@ -1,8 +1,6 @@
 module.exports = async ({ github, context, core }) => {
   const builds = [
     ['core.yml', process.env.CORE_RUN_ID],
-    ['gui.yml', process.env.GUI_RUN_ID],
-    ['mobile.yml', process.env.MOBILE_RUN_ID],
   ];
   let commit;
 
@@ -17,7 +15,7 @@ module.exports = async ({ github, context, core }) => {
       throw new Error(`${workflow}: run ${runId} must be a successful full build.`);
     }
     if (commit && run.head_sha !== commit) {
-      throw new Error('Core, GUI and Mobile must be built from the same commit.');
+      throw new Error('All release builds must use the same commit.');
     }
     commit = run.head_sha;
     core.info(`${workflow}: validated full build ${runId} at ${commit}.`);

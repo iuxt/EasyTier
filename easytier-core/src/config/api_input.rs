@@ -742,7 +742,7 @@ mod tests {
                         .get_routes(),
                     expected
                 );
-                #[cfg(feature = "web-client")]
+                #[cfg(feature = "process-management")]
                 {
                     let projected = super::super::api::network_config_from_toml(&config);
                     assert_eq!(
@@ -776,7 +776,7 @@ mod tests {
                     .get_dhcp_config(),
                 readback.gen_config().unwrap().get_dhcp_config()
             );
-            #[cfg(feature = "web-client")]
+            #[cfg(feature = "process-management")]
             assert_eq!(
                 super::super::api::network_config_from_toml(&config).dhcp_ipv4_cidr,
                 expected_cidr

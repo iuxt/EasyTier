@@ -14,11 +14,6 @@
 //! - `set_tun_fd`: attach a TUN file descriptor to a named instance.
 //! - `call_json_rpc`: call an exposed EasyTier RPC service with JSON payload.
 //!
-//! Config server client APIs:
-//! - `start_config_server_client`: start the managed remote config client.
-//! - `stop_config_server_client`: stop the remote config client and its managed instances.
-//! - `is_config_server_client_connected`: report whether the client is connected.
-//!
 //! Data plane APIs, enabled by the `ffi-dataplane` feature:
 //! - `data_plane_session_open` / `data_plane_session_close`: own one instance session.
 //! - `data_plane_*_submit`: submit non-blocking TCP and UDP operations.
@@ -28,10 +23,9 @@
 //! - `data_plane_resource_close`: close streams, listeners, and UDP sockets.
 //!
 //! Shared FFI helper APIs:
-//! - `get_error_msg`: copy the last FFI or config-server callback error message.
+//! - `get_error_msg`: copy the last FFI error message.
 //! - `free_string`: release strings allocated by this library.
 
-mod config_server;
 mod data_plane;
 mod error;
 mod instance_api;
@@ -43,12 +37,9 @@ mod types;
 #[cfg(test)]
 mod tests;
 
-pub use config_server::{in_config_server_callback, validate_config_server_client_options};
-pub use types::{
-    ConfigServerEventCallback, DataPlaneCompletion, DataPlaneSocketAddr, KeyValuePair,
-};
+pub use types::{DataPlaneCompletion, DataPlaneSocketAddr, KeyValuePair};
 
-use std::ffi::{c_char, c_int, c_void};
+use std::ffi::{c_char, c_int};
 
 // ===== Network Management API =====
 
@@ -71,8 +62,7 @@ pub unsafe extern "C" fn parse_config(cfg_str: *const c_char) -> c_int {
 /// Start one local EasyTier network instance from a TOML config string.
 ///
 /// The config's `inst_name` must be unique among instances started through this
-/// FFI layer. This API is mutually exclusive with config-server callback
-/// execution and will fail if called from a config-server event callback.
+/// FFI layer.
 ///
 /// # Safety
 /// `cfg_str` must be a non-null pointer to a null-terminated UTF-8 string.
@@ -93,7 +83,6 @@ pub unsafe extern "C" fn run_network_instance(cfg_str: *const c_char) -> c_int {
 /// retained are removed from the FFI name cache and any related data-plane
 /// handles are closed.
 ///
-/// This API fails if called from a config-server event callback.
 ///
 /// # Safety
 /// If `length > 0`, `inst_names` must be a non-null pointer to an array of
@@ -117,7 +106,6 @@ pub unsafe extern "C" fn retain_network_instance(
 /// Removed instances are also removed from the FFI name cache and any related
 /// data-plane handles are closed.
 ///
-/// This API fails if called from a config-server event callback.
 ///
 /// # Safety
 /// If `length > 0`, `inst_names` must be a non-null pointer to an array of
@@ -141,7 +129,6 @@ pub unsafe extern "C" fn delete_network_instance(
 /// key/value strings are allocated by this library and must be released with
 /// `free_string`.
 ///
-/// This API fails if called from a config-server event callback.
 ///
 /// # Safety
 /// If `max_length > 0`, `infos` must be a non-null pointer to writable storage
@@ -162,7 +149,6 @@ pub unsafe extern "C" fn list_instance(infos: *mut KeyValuePair, max_length: usi
 /// instance's running information. Returned key/value strings are allocated by
 /// this library and must be released with `free_string`.
 ///
-/// This API fails if called from a config-server event callback.
 ///
 /// # Safety
 /// If `max_length > 0`, `infos` must be a non-null pointer to writable storage
@@ -182,7 +168,7 @@ pub unsafe extern "C" fn collect_network_infos(
 /// Attach a TUN file descriptor to a named network instance.
 ///
 /// The instance must already have been registered in the FFI name cache by
-/// `run_network_instance` or by a managed config-server remote start event.
+/// `run_network_instance`.
 ///
 /// # Safety
 /// `inst_name` must be a non-null pointer to a null-terminated UTF-8 string.
@@ -211,7 +197,6 @@ pub unsafe extern "C" fn set_tun_fd(inst_name: *const c_char, fd: c_int) -> c_in
 /// On success, writes a newly allocated JSON response string to
 /// `out_response_json`. The caller must release it with `free_string`.
 ///
-/// This API fails if called from a config-server event callback.
 ///
 /// # Safety
 /// `service_name`, `method_name`, `payload_json`, and `out_response_json` must
@@ -240,74 +225,6 @@ pub unsafe extern "C" fn call_json_rpc(
     }
 }
 
-// ===== Config Server Client API =====
-
-/// Start the managed config-server client.
-///
-/// The client reuses EasyTier's web-client path and applies remote config
-/// changes through the shared `NativeInstanceManager`. Successful remote run
-/// and delete operations are delivered to `callback` as JSON event strings, one
-/// callback per affected instance. The event string is valid only for the
-/// duration of the callback; callers must copy it if they need to keep it.
-///
-/// The config-server client is mutually exclusive with the FFI data plane. If a
-/// data-plane handle exists or is being created, this function returns `-1`.
-///
-/// # Safety
-/// `config_server_url` and `machine_id` must be non-null pointers to
-/// null-terminated UTF-8 strings. `hostname` may be null; when non-null it must
-/// also point to a null-terminated UTF-8 string. `user_data` is passed back to
-/// `callback` unchanged and must remain valid for the callback's expectations.
-///
-/// # Return
-/// Returns `0` after the client starts successfully, or `-1` on failure. On
-/// failure, call `get_error_msg` on the same thread to retrieve details.
-#[cfg_attr(feature = "c-abi", unsafe(no_mangle))]
-pub unsafe extern "C" fn start_config_server_client(
-    config_server_url: *const c_char,
-    hostname: *const c_char,
-    machine_id: *const c_char,
-    secure_mode: bool,
-    callback: ConfigServerEventCallback,
-    user_data: *mut c_void,
-) -> c_int {
-    unsafe {
-        config_server::start_config_server_client(
-            config_server_url,
-            hostname,
-            machine_id,
-            secure_mode,
-            callback,
-            user_data,
-        )
-    }
-}
-
-/// Stop the managed config-server client.
-///
-/// This stops the client, removes instances tracked as remote config-server
-/// instances, waits for in-flight callback delivery when safe to do so, and
-/// releases the config-server/data-plane mutual exclusion state.
-///
-/// # Return
-/// Returns `0` if no client exists or if the active client is stopped
-/// successfully. Returns `-1` on failure. On failure, call `get_error_msg` on
-/// the same thread to retrieve details.
-#[cfg_attr(feature = "c-abi", unsafe(no_mangle))]
-pub extern "C" fn stop_config_server_client() -> c_int {
-    config_server::stop_config_server_client()
-}
-
-/// Report whether the managed config-server client is currently connected.
-///
-/// # Return
-/// Returns `1` when a client exists and reports connected, otherwise returns
-/// `0`.
-#[cfg_attr(feature = "c-abi", unsafe(no_mangle))]
-pub extern "C" fn is_config_server_client_connected() -> c_int {
-    config_server::is_config_server_client_connected()
-}
-
 // ===== Data Plane API =====
 
 #[cfg(feature = "ffi-dataplane")]
@@ -330,11 +247,7 @@ pub use data_plane::{
 ///
 /// API failures are stored in a thread-local buffer, so call this on the same
 /// thread that received a negative status or another documented failure
-/// sentinel. Config-server
-/// callback delivery failures may happen on a runtime thread; those are stored
-/// globally and are included here so direct FFI callers can still retrieve the
-/// last callback error. If there is no error message, this writes a null pointer
-/// to `out`.
+/// sentinel. If there is no error message, this writes a null pointer to `out`.
 ///
 /// The returned string is allocated by this library and must be released with
 /// `free_string`.

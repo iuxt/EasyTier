@@ -20,6 +20,7 @@ use super::{TargetFilter, format_line, level_is_enabled, parse_level};
 pub(super) struct FileSink {
     output: Option<FileOutput>,
     reload: bool,
+    use_environment: bool,
 }
 
 #[cfg(not(feature = "management"))]
@@ -44,10 +45,20 @@ impl FileSink {
         Self {
             output: None,
             reload: false,
+            use_environment: false,
         }
     }
 
+    #[cfg(test)]
     pub(super) fn from_config(config: FileLoggerConfig, reload: bool) -> anyhow::Result<Self> {
+        Self::from_config_with_environment(config, reload, true)
+    }
+
+    pub(super) fn from_config_with_environment(
+        config: FileLoggerConfig,
+        reload: bool,
+        use_environment: bool,
+    ) -> anyhow::Result<Self> {
         let level = config
             .level
             .as_deref()
@@ -70,7 +81,7 @@ impl FileSink {
             .build()
             .context("failed to initialize rolling file appender")?;
 
-        let filter = file_filter(level)?;
+        let filter = file_filter(level, use_environment)?;
         let max_level = AtomicU8::new(level_rank(filter.max_level()));
         Ok(Self {
             output: Some(FileOutput {
@@ -79,6 +90,7 @@ impl FileSink {
                 state: parking_lot::RwLock::new(FileState { level, filter }),
             }),
             reload,
+            use_environment,
         })
     }
 
@@ -125,7 +137,7 @@ impl FileSink {
             .as_ref()
             .filter(|_| self.reload)
             .context("logger reloader is not initialized")?;
-        let filter = file_filter(level)?;
+        let filter = file_filter(level, self.use_environment)?;
         let file_max_filter = filter.max_level();
         let file_max_level = level_rank(file_max_filter);
         let active_max_filter = console_max_level.max(file_max_filter);
@@ -212,9 +224,9 @@ impl FileSink {
 }
 
 #[cfg(feature = "management")]
-fn file_filter(level: LevelFilter) -> anyhow::Result<TargetFilter> {
-    if level == LevelFilter::Off {
-        Ok(TargetFilter::off())
+fn file_filter(level: LevelFilter, use_environment: bool) -> anyhow::Result<TargetFilter> {
+    if level == LevelFilter::Off || !use_environment {
+        Ok(TargetFilter::with_default(level))
     } else {
         TargetFilter::from_environment(TargetFilter::with_default(level))
     }

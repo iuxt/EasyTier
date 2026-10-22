@@ -9,13 +9,12 @@ pub(super) mod packet_proxy;
 mod process_rpc;
 #[cfg(feature = "management")]
 pub mod remote_client;
-mod web_client;
 
 use std::sync::Arc;
 
 #[cfg(any(not(feature = "management"), test))]
 use easytier_proto::api::config::ConfigRpcServer;
-use easytier_proto::api::manage::WebClientServiceServer;
+use easytier_proto::api::manage::ProcessManageRpcServer;
 #[cfg(feature = "management")]
 use easytier_proto::{
     api::logger::{LoggerRpc, LoggerRpcServer},
@@ -31,9 +30,7 @@ use crate::{
     rpc::service_registry::ServiceRegistry,
 };
 
-use super::{
-    ConfigFileControl, ConfigFilePermission, DaemonGuard, resolve_optional_instance_by_name,
-};
+use super::{ConfigFileControl, ConfigFilePermission, resolve_optional_instance_by_name};
 
 #[cfg(feature = "management")]
 pub use compiled::register_instance_management_rpc;
@@ -47,9 +44,6 @@ pub use process_rpc::{
     ConfigFileStorage, InstanceMutationHooks, InstanceMutationResult, ProcessManagement,
     ProcessManagementRpc, UnsupportedConfigFileStorage,
 };
-#[cfg(target_os = "wasi")]
-pub(crate) use web_client::WebClientBackend;
-pub use web_client::{ConfigServerEndpoint, WebClient, WebClientConfig};
 
 #[cfg(feature = "management")]
 pub use super::instance_rpc::full::call_instance_json_rpc;
@@ -85,14 +79,14 @@ pub fn register_management_rpc<F, H>(
     register_instance_management_rpc(instances.clone(), registry, storage.clone());
     registry.register(LoggerRpcServer::new(LoggerManagementRpc::new(logger)), "");
     registry.register(
-        WebClientServiceServer::new(ProcessManagementRpc::<F>::new(instances, hooks, storage)),
+        ProcessManageRpcServer::new(ProcessManagementRpc::<F>::new(instances, hooks, storage)),
         "",
     );
 }
 
-/// Registers the compact reverse-RPC surface required by easytier-web.
+/// Registers the compact reverse-RPC surface for compact management.
 #[cfg(any(not(feature = "management"), test))]
-pub(crate) fn register_web_client_rpc<F, H>(
+pub(crate) fn register_process_management_rpc<F, H>(
     instances: Arc<InstanceManager<F>>,
     registry: &ServiceRegistry,
     hooks: Arc<dyn InstanceMutationHooks>,
@@ -108,7 +102,7 @@ pub(crate) fn register_web_client_rpc<F, H>(
     );
     registry.register(ConfigRpcServer::new(config_rpc), "");
     registry.register(
-        WebClientServiceServer::new(ProcessManagementRpc::<F>::new(instances, hooks, storage)),
+        ProcessManageRpcServer::new(ProcessManagementRpc::<F>::new(instances, hooks, storage)),
         "",
     );
 }
@@ -126,7 +120,7 @@ where
     F: InstanceFactory<Instance = CoreInstance<H>>,
     H: CoreInstanceHost,
 {
-    if service_name == "api.manage.WebClientService" {
+    if service_name == "api.manage.ProcessManageRpc" {
         return Err(anyhow::anyhow!(
             "service {service_name} is not exposed through FFI/JNI generic RPC"
         )

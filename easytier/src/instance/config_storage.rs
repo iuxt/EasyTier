@@ -34,7 +34,9 @@ impl ConfigFileStorage for NativeConfigFileStorage {
 
     async fn write(&self, path: &Path, contents: &[u8]) -> anyhow::Result<()> {
         let path = path.to_owned();
-        let contents = contents.to_owned();
+        // Management serializes the portable network model. Keep the native
+        // executable's settings in the same file across network updates.
+        let contents = preserve_startup_settings(self.read(&path).await?.as_deref(), contents)?;
         tokio::task::spawn_blocking(move || {
             let mut options = OpenOptions::new();
             #[cfg(unix)]
@@ -56,9 +58,49 @@ impl ConfigFileStorage for NativeConfigFileStorage {
     }
 }
 
+fn preserve_startup_settings(previous: Option<&[u8]>, contents: &[u8]) -> anyhow::Result<Vec<u8>> {
+    let Some(previous) = previous
+        .and_then(|bytes| std::str::from_utf8(bytes).ok())
+        .and_then(|text| toml::from_str::<toml::Table>(text).ok())
+    else {
+        return Ok(contents.to_owned());
+    };
+    let sections = ["core", "console_logger", "file_logger"];
+    if !sections
+        .iter()
+        .any(|section| previous.contains_key(*section))
+    {
+        return Ok(contents.to_owned());
+    }
+    let mut updated: toml::Table = toml::from_str(std::str::from_utf8(contents)?)?;
+    for section in sections {
+        if let Some(value) = previous.get(section) {
+            updated.insert(section.to_owned(), value.clone());
+        }
+    }
+    Ok(toml::to_string_pretty(&updated)?.into_bytes())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn network_updates_preserve_native_startup_settings() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("config.toml");
+        let storage = NativeConfigFileStorage;
+        storage.write(&path, b"instance_name = 'old'\n[core]\ndaemon = true\n[file_logger]\nlevel = 'warn'\n[console_logger]\nlevel = 'info'\n").await.unwrap();
+        storage
+            .write(&path, b"instance_name = 'new'\n")
+            .await
+            .unwrap();
+        let saved: toml::Table = toml::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+        assert_eq!(saved["instance_name"].as_str(), Some("new"));
+        assert_eq!(saved["core"]["daemon"].as_bool(), Some(true));
+        assert_eq!(saved["file_logger"]["level"].as_str(), Some("warn"));
+        assert_eq!(saved["console_logger"]["level"].as_str(), Some("info"));
+    }
 
     #[tokio::test]
     async fn config_write_is_atomic_and_private() {

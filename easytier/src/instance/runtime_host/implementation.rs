@@ -33,7 +33,7 @@ impl InstanceRuntimeHost for NativeInstanceRuntimeHost {
         self.management_events_snapshot()
     }
 
-    #[cfg(feature = "web-client")]
+    #[cfg(feature = "process-management")]
     fn synchronize_config(
         &self,
         patch: &crate::proto::api::config::InstanceConfigPatch,
@@ -42,7 +42,7 @@ impl InstanceRuntimeHost for NativeInstanceRuntimeHost {
         self.synchronize_global_ctx_config(patch, config);
     }
 
-    #[cfg(feature = "web-client")]
+    #[cfg(feature = "process-management")]
     fn publish_config_patch(&self, patch: crate::proto::api::config::InstanceConfigPatch) {
         #[cfg(feature = "management")]
         self.event_journal.publish_config_patch(patch);

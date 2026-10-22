@@ -18,7 +18,6 @@ import (
 	"github.com/easytier/easytier/easytier-go/platform"
 	"github.com/easytier/easytier/easytier-go/platform/netstd"
 	hostproto "github.com/easytier/easytier/easytier-go/proto"
-	"github.com/easytier/easytier/easytier-go/proto/api/manage"
 )
 
 type State int32
@@ -81,7 +80,6 @@ func New(ctx context.Context, options Options) (*Host, error) {
 		engine.Options{
 			Services:            mergeServices(options.Platform),
 			PacketQueueCapacity: options.PacketQueueCapacity,
-			Management:          manager.handle,
 			LogWriter:           options.LogWriter,
 		},
 	)
@@ -89,7 +87,6 @@ func New(ctx context.Context, options Options) (*Host, error) {
 		return nil, err
 	}
 	host := &Host{engine: runtime, manager: manager}
-	manager.host = host
 	return host, nil
 }
 
@@ -131,9 +128,6 @@ func (host *Host) CreateInstance(
 	if err := host.manager.register(&managedInstance{
 		id:       id,
 		instance: instance,
-		owner:    instanceOwnerApplication,
-		source:   manage.ConfigSource_ConfigSourceUser,
-		name:     config.document.networkName,
 	}); err != nil {
 		_ = runtime.Close(contextutil.WithoutCancel(ctx))
 		return nil, err
@@ -191,9 +185,6 @@ func (host *Host) CreateInstanceTOML(
 	if err := host.manager.register(&managedInstance{
 		id:       id,
 		instance: instance,
-		owner:    instanceOwnerApplication,
-		source:   manage.ConfigSource_ConfigSourceUser,
-		name:     instanceName,
 	}); err != nil {
 		_ = runtime.Close(contextutil.WithoutCancel(ctx))
 		return nil, err
@@ -201,7 +192,7 @@ func (host *Host) CreateInstanceTOML(
 	return instance, nil
 }
 
-// Instances returns a stable snapshot of all application- and Web-owned instances.
+// Instances returns a stable snapshot of all local instances.
 func (host *Host) Instances() []*Instance {
 	if host == nil || host.manager == nil {
 		return nil

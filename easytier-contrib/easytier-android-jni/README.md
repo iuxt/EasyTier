@@ -181,7 +181,7 @@ public class EasyTierManager {
 
 `EasyTierJNI.callJsonRpc(serviceName, methodName, domainName, payloadJson)` 可以调用已暴露的
 EasyTier RPC 服务，payload 和返回值均为 protobuf JSON。该接口不支持
-`api.manage.WebClientService`；实例启动、保留、删除、信息收集仍使用专用 JNI API。
+`api.manage.ProcessManageRpc`；实例启动、保留、删除、信息收集仍使用专用 JNI API。
 
 ```java
 String response = EasyTierJNI.callJsonRpc(

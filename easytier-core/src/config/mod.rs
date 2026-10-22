@@ -1,8 +1,8 @@
 //! Static configuration schema plus the live runtime configuration store.
 
-#[cfg(feature = "web-client")]
+#[cfg(feature = "process-management")]
 pub mod api;
-#[cfg(any(feature = "web-client", feature = "browser-config"))]
+#[cfg(any(feature = "process-management", feature = "browser-config"))]
 pub mod api_input;
 #[cfg(all(
     feature = "browser-config",

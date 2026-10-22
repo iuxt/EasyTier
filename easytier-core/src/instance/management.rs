@@ -208,14 +208,14 @@ where
         self.peer_manager.credential_manager().list_credentials()
     }
 
-    #[cfg(feature = "web-client")]
+    #[cfg(feature = "process-management")]
     pub(crate) fn credential_manager(
         &self,
     ) -> Arc<crate::peers::credential_manager::CredentialManager> {
         self.peer_manager.credential_manager()
     }
 
-    #[cfg(feature = "web-client")]
+    #[cfg(feature = "process-management")]
     pub(crate) fn notify_credential_changed(&self) {
         self.peer_manager.notify_credential_changed();
     }

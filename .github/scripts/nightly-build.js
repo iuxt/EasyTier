@@ -9,7 +9,7 @@ module.exports = async ({ github, context, core, sleep = setTimeout }) => {
 
   for (const branch of branches.filter(({ name }) => name === 'main')) {
     const pending = new Map();
-    for (const workflow of ['core.yml', 'gui.yml', 'mobile.yml', 'test.yml']) {
+    for (const workflow of ['core.yml', 'test.yml']) {
       const { data } = await github.rest.actions.listWorkflowRuns({
         ...repository,
         workflow_id: workflow,

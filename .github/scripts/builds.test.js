@@ -5,7 +5,7 @@ const validate = require('./validate-release-builds.js');
 
 const context = { repo: { owner: 'EasyTier', repo: 'EasyTier' } };
 const core = { info() {} };
-const workflows = ['core.yml', 'gui.yml', 'mobile.yml', 'test.yml'];
+const workflows = ['core.yml', 'test.yml'];
 
 function nightly(branches, successfulRuns = {}) {
   const f = { dispatched: [], retried: [], responses: {}, inspected: [], sleeps: 0 };
@@ -55,7 +55,7 @@ test('first nightly builds every workflow on an existing main branch', async () 
   assert.deepEqual(f.dispatched[0].inputs, { sign_windows: false });
   assert.ok(f.dispatched.slice(1).every(run => !run.inputs));
   assert.deepEqual(f.inspected.map(run => run.workflow), workflows);
-  assert.ok(f.inspected.every(run => run.dispatched === 4));
+  assert.ok(f.inspected.every(run => run.dispatched === 2));
 });
 
 test('unchanged branches skip builds and unmonitored branches are ignored', async () => {
@@ -71,10 +71,10 @@ test('unchanged branches skip builds and unmonitored branches are ignored', asyn
 
 test('nightly retries a failed component using its last successful commit', async () => {
   const successfulRuns = Object.fromEntries(workflows.map(workflow => [`main/${workflow}`, 'new']));
-  successfulRuns['main/gui.yml'] = 'old';
+  successfulRuns['main/test.yml'] = 'old';
   const f = nightly([{ name: 'main', commit: { sha: 'new' } }], successfulRuns);
   assert.equal(await f.run(), 'new');
-  assert.deepEqual(f.dispatched.map(run => run.workflow_id), ['gui.yml']);
+  assert.deepEqual(f.dispatched.map(run => run.workflow_id), ['test.yml']);
 });
 
 test('nightly only builds main even when other branches exist', async () => {
@@ -101,7 +101,7 @@ test('nightly waits for every dispatched build before allowing publication', asy
 
 test('nightly retries failed jobs once and waits for the new attempt', async () => {
   const f = nightly([{ name: 'main', commit: { sha: 'new' } }]);
-  f.responses['gui.yml'] = [
+  f.responses['test.yml'] = [
     { conclusion: 'failure' },
     { conclusion: 'failure' }, // The API still returns the first attempt.
     { status: 'in_progress', run_attempt: 2 },
@@ -114,33 +114,31 @@ test('nightly retries failed jobs once and waits for the new attempt', async () 
 
 test('nightly fails instead of publishing if a retried build fails again', async () => {
   const f = nightly([{ name: 'main', commit: { sha: 'new' } }]);
-  f.responses['mobile.yml'] = [{ conclusion: 'failure' }, { conclusion: 'failure', run_attempt: 2 }];
-  await assert.rejects(f.run(), /mobile.yml: run 3 finished with failure/);
-  assert.deepEqual(f.retried, [3]);
+  f.responses['test.yml'] = [{ conclusion: 'failure' }, { conclusion: 'failure', run_attempt: 2 }];
+  await assert.rejects(f.run(), /test.yml: run 2 finished with failure/);
+  assert.deepEqual(f.retried, [2]);
 });
 
 test('nightly does not retry cancelled or timed-out builds', async () => {
   for (const conclusion of ['cancelled', 'timed_out']) {
     const f = nightly([{ name: 'main', commit: { sha: 'new' } }]);
     f.responses['test.yml'] = [{ conclusion }];
-    await assert.rejects(f.run(), new RegExp(`test.yml: run 4 finished with ${conclusion}`));
+    await assert.rejects(f.run(), new RegExp(`test.yml: run 2 finished with ${conclusion}`));
     assert.deepEqual(f.retried, []);
   }
 });
 
 test('nightly rejects a dispatch that races with a new main commit', async () => {
   const f = nightly([{ name: 'main', commit: { sha: 'new' } }]);
-  f.responses['gui.yml'] = [{ head_sha: 'newer', status: 'queued' }];
+  f.responses['test.yml'] = [{ head_sha: 'newer', status: 'queued' }];
   await assert.rejects(f.run(), /main changed while dispatching/);
   assert.deepEqual(f.retried, []);
 });
 
 process.env.CORE_RUN_ID = '1';
-process.env.GUI_RUN_ID = '2';
-process.env.MOBILE_RUN_ID = '3';
 
 function releaseRuns() {
-  return ['core.yml', 'gui.yml', 'mobile.yml'].map(workflow => ({
+  return ['core.yml'].map(workflow => ({
     path: `.github/workflows/${workflow}`,
     conclusion: 'success',
     event: 'workflow_dispatch',
@@ -170,8 +168,6 @@ test('release accepts full builds triggered by a release branch push', async () 
   const runs = releaseRuns();
   runs[0].event = 'push';
   runs[0].head_branch = 'releases/2.7';
-  runs[1].event = 'push';
-  runs[1].head_branch = 'releases/2.7';
   await release(runs);
 });
 
@@ -186,19 +182,13 @@ test('release rejects PR builds and regular branch pushes', async () => {
 test('release rejects failed and cancelled builds', async () => {
   for (const conclusion of ['failure', 'cancelled']) {
     const runs = releaseRuns();
-    runs[1].conclusion = conclusion;
+    runs[0].conclusion = conclusion;
     await assert.rejects(release(runs), /successful full build/);
   }
 });
 
 test('release rejects run IDs from the wrong workflow', async () => {
   const runs = releaseRuns();
-  runs[1].path = runs[0].path;
+  runs[0].path = '.github/workflows/test.yml';
   await assert.rejects(release(runs), /successful full build/);
-});
-
-test('release rejects builds from different commits', async () => {
-  const runs = releaseRuns();
-  runs[2].head_sha = 'different';
-  await assert.rejects(release(runs), /same commit/);
 });

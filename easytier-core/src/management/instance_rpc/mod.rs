@@ -29,10 +29,10 @@ use crate::{
 };
 
 use super::resolve_instance;
-#[cfg(feature = "web-client")]
+#[cfg(feature = "process-management")]
 use super::{ConfigFileStorage, ConfigPatchPersistence};
 
-#[cfg(feature = "web-client")]
+#[cfg(feature = "process-management")]
 mod config;
 #[cfg(feature = "management")]
 pub(super) mod full;
@@ -129,7 +129,7 @@ where
 #[doc(hidden)]
 pub struct ResolvedInstanceManagementRpc<R> {
     resolver: R,
-    #[cfg(feature = "web-client")]
+    #[cfg(feature = "process-management")]
     config_patch_persistence: Option<Arc<dyn ConfigPatchPersistence>>,
 }
 
@@ -140,7 +140,7 @@ where
     fn clone(&self) -> Self {
         Self {
             resolver: self.resolver.clone(),
-            #[cfg(feature = "web-client")]
+            #[cfg(feature = "process-management")]
             config_patch_persistence: self.config_patch_persistence.clone(),
         }
     }
@@ -169,11 +169,11 @@ where
     pub fn new(manager: Arc<InstanceManager<F>>) -> Self {
         Self {
             resolver: ManagerInstanceResolver { manager },
-            #[cfg(feature = "web-client")]
+            #[cfg(feature = "process-management")]
             config_patch_persistence: None,
         }
     }
-    #[cfg(feature = "web-client")]
+    #[cfg(feature = "process-management")]
     pub fn new_with_config_storage(
         manager: Arc<InstanceManager<F>>,
         storage: Arc<dyn ConfigFileStorage>,
@@ -204,23 +204,23 @@ where
 {
     ResolvedInstanceManagementRpc {
         resolver: BoundInstanceResolver { instance },
-        #[cfg(feature = "web-client")]
+        #[cfg(feature = "process-management")]
         config_patch_persistence: Some(Arc::new(InMemoryConfigPatchPersistence)),
     }
 }
 
-#[cfg(all(feature = "web-client", target_os = "wasi"))]
+#[cfg(all(feature = "process-management", target_os = "wasi"))]
 struct InMemoryConfigPatchPersistence;
 
 #[async_trait::async_trait]
-#[cfg(all(feature = "web-client", target_os = "wasi"))]
+#[cfg(all(feature = "process-management", target_os = "wasi"))]
 impl ConfigPatchPersistence for InMemoryConfigPatchPersistence {
     async fn persist(&self, _instance_id: uuid::Uuid, _config: &TomlConfig) -> anyhow::Result<()> {
         Ok(())
     }
 }
 
-#[cfg(feature = "web-client")]
+#[cfg(feature = "process-management")]
 struct ManagerConfigPatchPersistence<F, H>
 where
     F: InstanceFactory,
@@ -231,7 +231,7 @@ where
     _host: std::marker::PhantomData<fn() -> H>,
 }
 
-#[cfg(feature = "web-client")]
+#[cfg(feature = "process-management")]
 async fn persist_config_patch(
     storage: &dyn ConfigFileStorage,
     control: &crate::instance::manager::ConfigFileControl,
@@ -253,7 +253,7 @@ async fn persist_config_patch(
 }
 
 #[async_trait::async_trait]
-#[cfg(feature = "web-client")]
+#[cfg(feature = "process-management")]
 impl<F, H> ConfigPatchPersistence for ManagerConfigPatchPersistence<F, H>
 where
     F: InstanceFactory<Instance = CoreInstance<H>>,
@@ -268,7 +268,7 @@ where
     }
 }
 
-#[cfg(all(test, feature = "web-client"))]
+#[cfg(all(test, feature = "process-management"))]
 mod config_patch_persistence_tests {
     use std::{
         path::{Path, PathBuf},

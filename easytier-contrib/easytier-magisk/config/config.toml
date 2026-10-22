@@ -10,7 +10,6 @@ listeners = [
 ]
 mapped_listeners = []
 exit_nodes = []
-rpc_portal = "0.0.0.0:15888"
 
 [network_identity]
 network_name = "default"
@@ -36,3 +35,6 @@ disable_udp_hole_punching = false
 disable_tcp_hole_punching = false
 
 
+
+[core]
+rpc_portal = "127.0.0.1:15888"

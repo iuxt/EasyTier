@@ -8,9 +8,7 @@ mod session;
 #[cfg(feature = "ffi-dataplane")]
 pub use abi::*;
 #[cfg(feature = "ffi-dataplane")]
-pub(crate) use session::{
-    lock_for_config_server_start, remove_data_plane_sessions_by_instance_ids,
-};
+pub(crate) use session::remove_data_plane_sessions_by_instance_ids;
 
 #[cfg(not(feature = "ffi-dataplane"))]
 pub(crate) fn remove_data_plane_sessions_by_instance_ids(_ids: &[uuid::Uuid]) {}

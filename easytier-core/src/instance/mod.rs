@@ -6,7 +6,7 @@ mod config;
 mod data_plane_extension;
 mod lifecycle;
 mod management;
-#[cfg(feature = "web-client")]
+#[cfg(feature = "process-management")]
 mod management_extension;
 mod management_state;
 pub mod manager;
@@ -255,7 +255,7 @@ pub trait InstanceRuntimeHost: std::any::Any + Send + Sync + 'static {
 
     /// Applies Host-side cached views of fields already committed to the
     /// shared TOML model.
-    #[cfg(feature = "web-client")]
+    #[cfg(feature = "process-management")]
     fn synchronize_config(
         &self,
         _patch: &crate::proto::api::config::InstanceConfigPatch,
@@ -263,7 +263,7 @@ pub trait InstanceRuntimeHost: std::any::Any + Send + Sync + 'static {
     ) {
     }
 
-    #[cfg(feature = "web-client")]
+    #[cfg(feature = "process-management")]
     fn publish_config_patch(&self, _patch: crate::proto::api::config::InstanceConfigPatch) {}
 
     fn attach_tun_fd(&self, _fd: i32) -> anyhow::Result<()> {

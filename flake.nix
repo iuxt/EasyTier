@@ -44,14 +44,11 @@
               "rustfmt"
               "clippy"
             ]
-            ++ (if builtins.elem "android" features then android.rust.extensions else [ ]);
+;
 
-            targets = muslTargets ++ (if builtins.elem "android" features then android.rust.targets else []);
+            targets = muslTargets;
           };
 
-        android = import ./android.nix {
-          inherit pkgs system nixpkgs;
-        };
 
         makeShell =
           features:
@@ -73,14 +70,7 @@
                   pkg-config
                   bridge-utils # for three node test
                 ]
-                ++ (withFeature "web" [
-                  nodejs_22
-                  pnpm
-                ])
-                ++ (withFeature "gui" [
-                  libayatana-appindicator
-                ])
-                ++ (withFeature "android" android.packages)
+
               );
 
             buildInputs = with pkgs; ([
@@ -89,8 +79,6 @@
               openssl
               libclang
               llvmPackages.libclang
-              libsoup_3
-              webkitgtk_4_1
             ]);
 
             RUST_SRC_PATH = "${rust}/lib/rustlib/src/rust/library";
@@ -105,23 +93,13 @@
             CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER = "clang";
             CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER = "clang";
           }
-          // (if hasFeature "android" then android.envVars else { }));
+          );
       in
       {
         devShells = {
           default = makeShell [ ];
           core = makeShell [ ];
-          web = makeShell [ "web" ];
-          gui = makeShell [ "gui" "web" ];
-          android = makeShell [
-            "android"
-            "web"
-          ];
-          full = makeShell [
-            "web"
-            "gui"
-            "android"
-          ];
+          full = makeShell [ ];
         };
       }
     );

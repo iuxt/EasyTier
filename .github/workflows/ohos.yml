@@ -72,8 +72,6 @@ jobs:
         uses: ./.github/actions/prepare-build
         with:
           target: aarch64-unknown-linux-ohos
-          gui: false
-          pnpm: false
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up HarmonyOS

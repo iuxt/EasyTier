@@ -5,7 +5,7 @@ const easytier = createEasyTierCloudflare<Env>({
   config: (env) => ({
     networkName: env.EASYTIER_NETWORK_NAME,
     networkSecret: env.EASYTIER_NETWORK_SECRET,
-    instanceName: "easytier-web-example-relay",
+    instanceName: "easytier-browser-example-relay",
     encryption: true,
   }),
 });

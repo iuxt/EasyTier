@@ -23,8 +23,6 @@ pub(crate) mod socket;
 pub mod socket_protector;
 pub mod tunnel;
 pub mod utils;
-#[cfg(feature = "web-client")]
-pub mod web_client;
 
 #[cfg(test)]
 mod tests;

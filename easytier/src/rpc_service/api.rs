@@ -9,8 +9,13 @@ use easytier_core::{management::ReadOnlyManagementServer, socket::SocketListener
 #[cfg(feature = "management")]
 use crate::{
     instance::config_storage::NativeConfigFileStorage, rpc_service::logger::NativeLoggerControl,
-    web_client::DefaultHooks,
 };
+#[cfg(feature = "management")]
+struct DefaultHooks;
+#[cfg(feature = "management")]
+#[async_trait::async_trait]
+impl easytier_core::management::InstanceMutationHooks for DefaultHooks {}
+
 use crate::{
     instance::factory::NativeInstanceManager,
     proto::{

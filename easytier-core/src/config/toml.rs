@@ -363,7 +363,7 @@ fn default_true() -> bool {
 }
 
 #[optionize::optionized]
-#[cfg_attr(any(feature = "web-client", feature = "browser-config"), optionize(object = easytier_proto::api::manage::ManagedCredentialConfig))]
+#[cfg_attr(any(feature = "process-management", feature = "browser-config"), optionize(object = easytier_proto::api::manage::ManagedCredentialConfig))]
 #[derive(Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct ManagedCredentialConfig {
@@ -628,7 +628,7 @@ impl TomlConfig {
     }
 }
 
-#[cfg(feature = "web-client")]
+#[cfg(feature = "process-management")]
 mod snapshot;
 
 impl ConfigLoader for TomlConfig {

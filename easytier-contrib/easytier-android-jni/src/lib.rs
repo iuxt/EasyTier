@@ -14,17 +14,9 @@
 //! - `collectNetworkInfos()`: return running instance info as a JSON string.
 //! - `callJsonRpc(...)`: call an exposed EasyTier RPC service with JSON payload.
 //!
-//! Config server client APIs:
-//! - `startConfigServerClient(url, hostname, machineId, secureMode, callback)`:
-//!   start the managed remote config client.
-//! - `stopConfigServerClient()`: stop the managed client and release its Java callback.
-//! - `isConfigServerClientConnected()`: return whether the managed client is connected.
-//!
 //! Error API:
 //! - `getLastError()`: return the latest FFI/JNI error string for the calling thread.
 //!
-mod callback;
-mod config_server_api;
 mod error;
 mod json_rpc_api;
 mod logger;
@@ -32,8 +24,8 @@ mod network_api;
 mod strings;
 
 use jni::JNIEnv;
-use jni::objects::{JClass, JObject, JObjectArray, JString};
-use jni::sys::{jboolean, jint, jstring};
+use jni::objects::{JClass, JObjectArray, JString};
+use jni::sys::{jint, jstring};
 
 /// Attach a TUN file descriptor to an EasyTier network instance.
 ///
@@ -194,78 +186,11 @@ pub extern "system" fn Java_com_easytier_jni_EasyTierJNI_callJsonRpc(
 /// Java signature:
 /// `EasyTierJNI.getLastError(): String?`
 ///
-/// This combines the FFI thread-local error with any pending config-server Java
-/// callback error. It returns null when no error is available.
+/// Returns the FFI thread-local error.
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_easytier_jni_EasyTierJNI_getLastError(
     env: JNIEnv,
     class: JClass,
 ) -> jstring {
     error::get_last_error_jni(env, class)
-}
-
-/// Start the managed config-server client.
-///
-/// Java signature:
-/// `EasyTierJNI.startConfigServerClient(url, hostname, machineId, secureMode, callback): Int`
-///
-/// JNI only converts Java values and keeps the Java callback alive. The FFI
-/// layer owns singleton lifecycle, config-server/data-plane mutual exclusion,
-/// remote instance tracking, and callback event timing. If `callback` is
-/// non-null, each remote apply/delete event is delivered to
-/// `ConfigServerEventCallback.onEvent(eventJson)`.
-///
-/// On failure this returns `-1` and throws `RuntimeException`.
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_easytier_jni_EasyTierJNI_startConfigServerClient(
-    mut env: JNIEnv,
-    _class: JClass,
-    config_server_url: JString,
-    hostname: JString,
-    machine_id: JString,
-    secure_mode: jboolean,
-    callback: JObject,
-) -> jint {
-    logger::init();
-    config_server_api::start_config_server_client_jni(
-        &mut env,
-        config_server_url,
-        hostname,
-        machine_id,
-        secure_mode,
-        callback,
-    )
-}
-
-/// Stop the managed config-server client.
-///
-/// Java signature:
-/// `EasyTierJNI.stopConfigServerClient(): Int`
-///
-/// The FFI layer performs the actual stop and managed instance cleanup. JNI
-/// releases the Java callback reference after FFI stop succeeds. On failure
-/// this returns `-1` and throws `RuntimeException`.
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_easytier_jni_EasyTierJNI_stopConfigServerClient(
-    env: JNIEnv,
-    class: JClass,
-) -> jint {
-    logger::init();
-    config_server_api::stop_config_server_client_jni(env, class)
-}
-
-/// Report whether the managed config-server client is connected.
-///
-/// Java signature:
-/// `EasyTierJNI.isConfigServerClientConnected(): Boolean`
-///
-/// Returns `JNI_TRUE` only when the FFI config-server client exists and reports
-/// connected.
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_easytier_jni_EasyTierJNI_isConfigServerClientConnected(
-    env: JNIEnv,
-    class: JClass,
-) -> jboolean {
-    logger::init();
-    config_server_api::is_config_server_client_connected_jni(env, class)
 }

@@ -248,7 +248,6 @@ listeners = [
     "wss://0.0.0.0:11012/",
 ]
 exit_nodes = []
-rpc_portal = "0.0.0.0:0"
 
 [[peer]]
 uri = "tcp://public.easytier.top:11010"
@@ -267,12 +266,15 @@ latency_first = false
 enable_exit_node = false
 no_tun = false
 use_smoltcp = false
-foreign_network_whitelist = "*"
+relay_network_whitelist = "*"
 disable_p2p = false
 p2p_only = false
 relay_all_peer_rpc = false
 disable_tcp_hole_punching = false
 disable_udp_hole_punching = false
+
+[core]
+rpc_portal = "127.0.0.1:15888"
 
 EOF
 

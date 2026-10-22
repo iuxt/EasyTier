@@ -68,9 +68,9 @@ use easytier::{
                 SetLoggerConfigRequest,
             },
             manage::{
-                ListNetworkInstanceMetaRequest, ListNetworkInstanceRequest,
-                VpnPortalClientConfig as ManageVpnPortalClientConfig, WebClientService,
-                WebClientServiceClientFactory,
+                ListNetworkInstanceMetaRequest, ListNetworkInstanceRequest, ProcessManageRpc,
+                ProcessManageRpcClientFactory,
+                VpnPortalClientConfig as ManageVpnPortalClientConfig,
             },
         },
         common::{NatType, PortForwardConfigPb, SocketType},
@@ -616,11 +616,11 @@ const ROUTE_DROP_COLUMNS: &[&str] = &[
     "next_hop_lat",
 ];
 
-fn is_missing_web_client_service(error: &RpcError) -> bool {
+fn is_missing_process_manage_rpc(error: &RpcError) -> bool {
     matches!(
         error,
         RpcError::InvalidServiceKey(service_name, _)
-            if service_name.trim_matches('"') == "WebClientService"
+            if service_name.trim_matches('"') == "ProcessManageRpc"
     )
 }
 
@@ -981,24 +981,24 @@ mod tests {
     }
 
     #[test]
-    fn missing_web_client_service_matches_raw_service_name() {
-        let error = RpcError::InvalidServiceKey("WebClientService".to_string(), "".to_string());
+    fn missing_process_manage_rpc_matches_raw_service_name() {
+        let error = RpcError::InvalidServiceKey("ProcessManageRpc".to_string(), "".to_string());
 
-        assert!(is_missing_web_client_service(&error));
+        assert!(is_missing_process_manage_rpc(&error));
     }
 
     #[test]
-    fn missing_web_client_service_matches_serialized_service_name() {
-        let error = RpcError::InvalidServiceKey("\"WebClientService\"".to_string(), "".to_string());
+    fn missing_process_manage_rpc_matches_serialized_service_name() {
+        let error = RpcError::InvalidServiceKey("\"ProcessManageRpc\"".to_string(), "".to_string());
 
-        assert!(is_missing_web_client_service(&error));
+        assert!(is_missing_process_manage_rpc(&error));
     }
 
     #[test]
-    fn missing_web_client_service_rejects_other_services() {
+    fn missing_process_manage_rpc_rejects_other_services() {
         let error = RpcError::InvalidServiceKey("PeerManageRpc".to_string(), "".to_string());
 
-        assert!(!is_missing_web_client_service(&error));
+        assert!(!is_missing_process_manage_rpc(&error));
     }
 
     #[test]
@@ -1183,12 +1183,12 @@ impl<'a> CommandHandler<'a> {
 
     async fn get_manage_client(
         &self,
-    ) -> Result<Box<dyn WebClientService<Controller = BaseController>>, Error> {
+    ) -> Result<Box<dyn ProcessManageRpc<Controller = BaseController>>, Error> {
         Ok(self
             .client
             .lock()
             .await
-            .scoped_client::<WebClientServiceClientFactory<BaseController>>("".to_string())
+            .scoped_client::<ProcessManageRpcClientFactory<BaseController>>("".to_string())
             .await
             .with_context(|| "failed to get manage client")?)
     }
@@ -1204,7 +1204,7 @@ impl<'a> CommandHandler<'a> {
             .await
         {
             Ok(response) => response,
-            Err(error) if is_missing_web_client_service(&error) => return Ok(None),
+            Err(error) if is_missing_process_manage_rpc(&error) => return Ok(None),
             Err(error) => return Err(error.into()),
         };
         let inst_ids = list_response

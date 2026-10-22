@@ -51,29 +51,6 @@ easytier-mini --config mini.toml
 
 `-c` is accepted as the short form of `--config`.
 
-Start it as an EasyTier Web managed node with a complete config-server URL:
-
-```sh
-easytier-mini --config-server udp://config-server.easytier.cn:22020/TOKEN
-```
-
-`--machine-id`, `--hostname`, and `--secure-mode` match the full client's Web
-identity and transport options. `--config` and `--config-server` may be used
-together: the local instance remains static while Web-owned instances are
-created, updated, retained, and deleted independently.
-
-The node also exposes the native EasyTier management RPC protocol on
-`127.0.0.1:15888`, so the full `easytier-cli` can inspect it:
-
-```sh
-easytier-cli node info
-easytier-cli peer
-easytier-cli route
-easytier-cli connector list
-```
-
-For example:
-
 ```toml
 instance_name = "mini"
 ipv4 = "10.147.0.2"
@@ -87,9 +64,9 @@ network_secret = "change-me"
 uri = "tcp://example.net:11010"
 ```
 
-Local TOML and Web configuration both retain the complete authoritative model.
+Local TOML configuration retains the complete authoritative model.
 The compact runtime silently omits unsupported capabilities while normalizing
-that model into live runtime state. EasyTier Web therefore sees every accepted
+that model into live runtime state. The configuration model retains every accepted
 configuration value unchanged and its consistency checks converge. This also
 applies to hot patches: for example, a port-forward patch remains visible to
 the controller while no port-forward service starts in mini. ChaCha20 falls
@@ -99,8 +76,7 @@ The compact runtime supports `tcp://` and `udp://` listener, mapped-listener
 and peer URLs. `no_tun = true` runs through smoltcp without an OS TUN device,
 and `dhcp = true` allocates the virtual IPv4 address dynamically.
 
-The mini feature set keeps STUN collection, UDP hole punching, Web heartbeats,
-Web instance lifecycle management and the config hot-patch RPC. It omits TCP
+The mini feature set keeps STUN collection, UDP hole punching and local management RPC. It omits TCP
 hole punching, endpoint discovery (`http://`, `https://`, `txt://` and
 `srv://` peers), protobuf reflection, logger control and the rest of the full
 management surface. Unsupported connector URLs are accepted as no-ops. Its

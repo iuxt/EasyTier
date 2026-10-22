@@ -35,9 +35,9 @@ use easytier_proto::{
         DeleteNetworkInstanceResponse, GetNetworkInstanceConfigRequest,
         GetNetworkInstanceConfigResponse, ListNetworkInstanceMetaRequest,
         ListNetworkInstanceMetaResponse, ListNetworkInstanceRequest, ListNetworkInstanceResponse,
+        ProcessManageRpc, ProcessManageRpcClientFactory, ProcessManageRpcServer,
         RetainNetworkInstanceRequest, RetainNetworkInstanceResponse, RunNetworkInstanceRequest,
         RunNetworkInstanceResponse, ValidateConfigRequest, ValidateConfigResponse,
-        WebClientService, WebClientServiceClientFactory, WebClientServiceServer,
     },
     common::TunnelInfo,
     rpc_types::{controller::BaseController, error::Error as RpcError},
@@ -70,7 +70,7 @@ const MAX_DRAIN_PACKETS: usize = 32;
 const PACKET_QUEUE_CAPACITY: usize = 64;
 const RPC_PEER_ID: u32 = 1;
 const RPC_RESPONSE_TIMEOUT: Duration = Duration::from_secs(45);
-const WEB_CLIENT_SERVICE_NAME: &str = "api.manage.WebClientService";
+const PROCESS_MANAGE_SERVICE_NAME: &str = "api.manage.ProcessManageRpc";
 const MANAGEMENT_SOCKET_FILE_NAME: &str = "easytier-nearby-management.sock";
 const MAX_PENDING_HOST_COMMANDS: usize = 8;
 const HOST_COMMAND_TIMEOUT: Duration = Duration::from_secs(30);
@@ -323,11 +323,11 @@ pub(crate) fn complete_nearby_host_command(
 }
 
 #[derive(Clone)]
-struct NearbyWebClientService {
+struct NearbyProcessManageRpc {
     inner: ProcessManagementRpc<NativeInstanceFactory>,
 }
 
-impl NearbyWebClientService {
+impl NearbyProcessManageRpc {
     fn new() -> Self {
         Self {
             inner: ProcessManagementRpc::new(
@@ -382,7 +382,7 @@ impl NearbyWebClientService {
 }
 
 #[async_trait]
-impl WebClientService for NearbyWebClientService {
+impl ProcessManageRpc for NearbyProcessManageRpc {
     type Controller = BaseController;
 
     async fn validate_config(
@@ -521,7 +521,7 @@ pub(crate) fn ensure_runtime_management_server_started() -> bool {
 
     let mut server = StandAloneServer::new(NearbyUnixListener::new(socket_path.clone()));
     server.registry().register(
-        WebClientServiceServer::new(NearbyWebClientService::new()),
+        ProcessManageRpcServer::new(NearbyProcessManageRpc::new()),
         "",
     );
     if let Err(error) = ASYNC_RUNTIME.block_on(server.serve()) {
@@ -975,7 +975,7 @@ async fn call_official_management_json_rpc(
     }
     let controller = BaseController::default();
     client
-        .scoped_client::<WebClientServiceClientFactory<BaseController>>(
+        .scoped_client::<ProcessManageRpcClientFactory<BaseController>>(
             RPC_PEER_ID,
             RPC_PEER_ID,
             String::new(),
@@ -985,7 +985,7 @@ async fn call_official_management_json_rpc(
 }
 
 fn valid_management_json_call(service_name: &str, method_name: &str, domain_name: &str) -> bool {
-    service_name == WEB_CLIENT_SERVICE_NAME
+    service_name == PROCESS_MANAGE_SERVICE_NAME
         && domain_name.is_empty()
         && matches!(
             method_name,
@@ -1047,19 +1047,19 @@ mod tests {
     }
 
     #[test]
-    fn only_allows_the_nearby_web_client_surface() {
+    fn only_allows_the_nearby_process_management_surface() {
         assert!(valid_management_json_call(
-            WEB_CLIENT_SERVICE_NAME,
+            PROCESS_MANAGE_SERVICE_NAME,
             "CollectNetworkInfo",
             ""
         ));
         assert!(!valid_management_json_call(
-            WEB_CLIENT_SERVICE_NAME,
+            PROCESS_MANAGE_SERVICE_NAME,
             "RetainNetworkInstance",
             ""
         ));
         assert!(!valid_management_json_call(
-            WEB_CLIENT_SERVICE_NAME,
+            PROCESS_MANAGE_SERVICE_NAME,
             "GetNetworkInstanceConfig",
             ""
         ));
@@ -1069,7 +1069,7 @@ mod tests {
             ""
         ));
         assert!(!valid_management_json_call(
-            WEB_CLIENT_SERVICE_NAME,
+            PROCESS_MANAGE_SERVICE_NAME,
             "CollectNetworkInfo",
             "unexpected-domain"
         ));

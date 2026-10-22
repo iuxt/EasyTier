@@ -7,14 +7,6 @@ on:
         description: 'The run id of EasyTier-Core Action in EasyTier repo'
         type: number
         required: true
-      gui_run_id:
-        description: 'The run id of EasyTier-GUI Action in EasyTier repo'
-        type: number
-        required: true
-      mobile_run_id:
-        description: 'The run id of EasyTier-Mobile Action in EasyTier repo'
-        type: number
-        required: true
       version:
         description: 'Version for this release'
         type: string
@@ -42,8 +34,6 @@ jobs:
         uses: actions/github-script@v8
         env:
           CORE_RUN_ID: ${{ inputs.core_run_id }}
-          GUI_RUN_ID: ${{ inputs.gui_run_id }}
-          MOBILE_RUN_ID: ${{ inputs.mobile_run_id }}
         with:
           script: |
             const validate = require('./.github/scripts/validate-release-builds.js');
@@ -57,29 +47,12 @@ jobs:
           repo: ${{ github.repository }}
           path: release_assets
 
-      - name: Download GUI Artifact
-        uses: dawidd6/action-download-artifact@v11
-        with:
-          github_token: ${{secrets.GITHUB_TOKEN}}
-          run_id: ${{ inputs.gui_run_id }}
-          repo: ${{ github.repository }}
-          path: release_assets_nozip
-
-      - name: Download Mobile Artifact
-        uses: dawidd6/action-download-artifact@v11
-        with:
-          github_token: ${{secrets.GITHUB_TOKEN}}
-          run_id: ${{ inputs.mobile_run_id }}
-          repo: ${{ github.repository }}
-          path: release_assets_nozip
-
       - name: Zip release assets
         env:
           VERSION: ${{ inputs.version }}
         run: |
           mkdir zipped_assets
 
-          find release_assets_nozip -type f -exec mv {} zipped_assets \;
           ls -l -R ./zipped_assets
 
           cd release_assets

@@ -36,7 +36,7 @@ async function connect(): Promise<void> {
       {
         networkName: requiredField(fields, "network"),
         networkSecret: requiredField(fields, "secret"),
-        instanceName: "easytier-web-example",
+        instanceName: "easytier-browser-example",
         ipv4: requiredField(fields, "ipv4"),
         peers: requiredField(fields, "relay"),
       },

@@ -215,8 +215,6 @@ mod abi {
     mod data_plane;
     #[cfg(feature = "management-rpc")]
     mod rpc;
-    #[cfg(feature = "management")]
-    mod web_client;
 
     const MAX_CREATE_CONFIG_LEN: usize = 16 * 1024 * 1024;
     #[cfg(feature = "wasm-host-tunnel")]
@@ -260,8 +258,6 @@ mod abi {
     struct WasiContext {
         factory: WasiInstanceFactory,
         instances: RefCell<BTreeMap<uuid::Uuid, Arc<WasiInstance>>>,
-        #[cfg(feature = "management")]
-        web_client: RefCell<Option<crate::wasi::web_client::WasiWebClientRuntime>>,
         abi: RefCell<WasiAbiState>,
     }
 
@@ -273,8 +269,6 @@ mod abi {
             Self {
                 factory,
                 instances: RefCell::new(BTreeMap::new()),
-                #[cfg(feature = "management")]
-                web_client: RefCell::new(None),
                 abi: RefCell::new(WasiAbiState::default()),
             }
         }

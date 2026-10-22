@@ -1,9 +1,5 @@
 package com.easytier.jni
 
-fun interface ConfigServerEventCallback {
-    fun onEvent(eventJson: String)
-}
-
 /** EasyTier JNI 接口类 提供 Android 应用调用 EasyTier 核心网络功能的接口 */
 object EasyTierJNI {
     init {
@@ -35,35 +31,6 @@ object EasyTierJNI {
      * @throws RuntimeException 当实例启动失败时抛出异常
      */
     @JvmStatic external fun runNetworkInstance(config: String): Int
-
-    /**
-     * 启动配置服务器客户端
-     * @param url 配置服务器 URL
-     * @param hostname 主机名，传入 null 使用系统主机名
-     * @param machineId 稳定机器 ID，由调用方负责持久化
-     * @param secureMode 是否启用 secure mode
-     * @param callback 远程配置应用/删除事件回调
-     * @return 0 表示成功，-1 表示失败
-     * @throws RuntimeException 当客户端启动失败时抛出异常
-     */
-    @JvmStatic
-    external fun startConfigServerClient(
-            url: String,
-            hostname: String?,
-            machineId: String,
-            secureMode: Boolean,
-            callback: ConfigServerEventCallback?
-    ): Int
-
-    /**
-     * 停止配置服务器客户端
-     * @return 0 表示成功，-1 表示失败
-     * @throws RuntimeException 当客户端停止失败时抛出异常
-     */
-    @JvmStatic external fun stopConfigServerClient(): Int
-
-    /** 查询配置服务器客户端是否已连接 */
-    @JvmStatic external fun isConfigServerClientConnected(): Boolean
 
     /**
      * 保留指定的网络实例，停止其他实例
@@ -100,7 +67,7 @@ object EasyTierJNI {
     /**
      * 调用暴露的 EasyTier RPC 方法，输入和输出均为 protobuf JSON 字符串。
      *
-     * 不支持 api.manage.WebClientService；实例启动、保留、删除、信息收集请继续使用专用 JNI API。
+     * 不支持 api.manage.ProcessManageRpc；实例启动、保留、删除、信息收集请继续使用专用 JNI API。
      * payloadJson 需要包含目标 RPC 所需的 instance selector。
      *
      * @param serviceName RPC 服务名，例如 api.instance.PeerManageRpcService

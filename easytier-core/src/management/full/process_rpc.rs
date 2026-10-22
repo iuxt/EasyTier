@@ -10,9 +10,9 @@ use easytier_proto::{
         DeleteNetworkInstanceResponse, GetNetworkInstanceConfigRequest,
         GetNetworkInstanceConfigResponse, ListNetworkInstanceMetaRequest,
         ListNetworkInstanceMetaResponse, ListNetworkInstanceRequest, ListNetworkInstanceResponse,
-        NetworkInstanceRunningInfoMap, NetworkMeta, RetainNetworkInstanceRequest,
+        NetworkInstanceRunningInfoMap, NetworkMeta, ProcessManageRpc, RetainNetworkInstanceRequest,
         RetainNetworkInstanceResponse, RunNetworkInstanceRequest, RunNetworkInstanceResponse,
-        ValidateConfigRequest, ValidateConfigResponse, WebClientService,
+        ValidateConfigRequest, ValidateConfigResponse,
     },
     rpc_types::{self, controller::BaseController},
 };
@@ -563,7 +563,7 @@ where
 }
 
 #[async_trait::async_trait]
-impl<F, H> WebClientService for ProcessManagementRpc<F>
+impl<F, H> ProcessManageRpc for ProcessManagementRpc<F>
 where
     F: InstanceFactory<Instance = CoreInstance<H>, CreateContext = ()>,
     F::Error: std::fmt::Debug + std::fmt::Display + Send + Sync + 'static,

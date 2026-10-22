@@ -3,7 +3,6 @@ use std::ffi::{CString, c_char, c_int};
 use easytier::common::config::{ConfigFileControl, TomlConfigLoader};
 
 use crate::{
-    config_server::{in_config_server_callback, wait_for_config_server_delivery},
     error::set_error_msg,
     state::{ffi_context, resolve_instance_id_by_name},
     types::KeyValuePair,
@@ -60,11 +59,6 @@ pub(crate) unsafe fn parse_config(cfg_str: *const std::ffi::c_char) -> std::ffi:
 /// # Safety
 /// Run the network instance
 pub(crate) unsafe fn run_network_instance(cfg_str: *const std::ffi::c_char) -> std::ffi::c_int {
-    if in_config_server_callback() {
-        set_error_msg("cannot run network instance from config server callback");
-        return -1;
-    }
-
     let cfg_str = unsafe {
         assert!(!cfg_str.is_null());
         std::ffi::CStr::from_ptr(cfg_str)
@@ -79,7 +73,6 @@ pub(crate) unsafe fn run_network_instance(cfg_str: *const std::ffi::c_char) -> s
         }
     };
 
-    wait_for_config_server_delivery();
     if let Err(e) = ffi_context().runtime.block_on(
         ffi_context()
             .process_management
@@ -126,12 +119,6 @@ pub(crate) unsafe fn retain_network_instance(
     inst_names: *const *const std::ffi::c_char,
     length: usize,
 ) -> std::ffi::c_int {
-    if in_config_server_callback() {
-        set_error_msg("cannot retain network instances from config server callback");
-        return -1;
-    }
-
-    wait_for_config_server_delivery();
     let retained_names = if length == 0 {
         Vec::new()
     } else {
@@ -159,12 +146,6 @@ pub(crate) unsafe fn delete_network_instance(
     inst_names: *const *const std::ffi::c_char,
     length: usize,
 ) -> std::ffi::c_int {
-    if in_config_server_callback() {
-        set_error_msg("cannot delete network instances from config server callback");
-        return -1;
-    }
-
-    wait_for_config_server_delivery();
     if length == 0 {
         return 0;
     }
@@ -191,11 +172,6 @@ pub(crate) unsafe fn collect_network_infos(
     infos: *mut KeyValuePair,
     max_length: usize,
 ) -> std::ffi::c_int {
-    if in_config_server_callback() {
-        set_error_msg("cannot collect network infos from config server callback");
-        return -1;
-    }
-
     if max_length == 0 {
         return 0;
     }
@@ -247,11 +223,6 @@ pub(crate) unsafe fn collect_network_infos(
 /// # Safety
 /// List the instance names and IDs known by the FFI instance manager.
 pub(crate) unsafe fn list_instance(infos: *mut KeyValuePair, max_length: usize) -> std::ffi::c_int {
-    if in_config_server_callback() {
-        set_error_msg("cannot list instances from config server callback");
-        return -1;
-    }
-
     if max_length == 0 {
         return 0;
     }

@@ -26,7 +26,6 @@ pub(crate) mod secure_datagram;
 pub mod stats;
 pub mod tcp;
 pub mod udp;
-pub mod web_security;
 pub mod wrapper;
 
 /// Reports whether the configured name resolves to the insecure XOR cipher.

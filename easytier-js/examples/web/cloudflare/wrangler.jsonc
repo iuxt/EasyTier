@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/wrangler/config-schema.json",
-  "name": "easytier-web-example",
+  "name": "easytier-browser-example",
   "main": "worker.ts",
   "compatibility_date": "2026-07-29",
   "compatibility_flags": ["nodejs_compat"],
@@ -12,7 +12,7 @@
     }
   ],
   "vars": {
-    "EASYTIER_NETWORK_NAME": "easytier-web-example"
+    "EASYTIER_NETWORK_NAME": "easytier-browser-example"
   },
   "secrets": {
     "required": ["EASYTIER_NETWORK_SECRET"]

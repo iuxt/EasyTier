@@ -7,8 +7,8 @@ use easytier_proto::{
     api::manage::{
         CollectNetworkInfoRequest, CollectNetworkInfoResponse, DeleteNetworkInstanceRequest,
         GetNetworkInstanceConfigRequest, ListNetworkInstanceMetaRequest,
-        ListNetworkInstanceRequest, NetworkConfig, NetworkMeta, RunNetworkInstanceRequest,
-        ValidateConfigRequest, ValidateConfigResponse, WebClientService,
+        ListNetworkInstanceRequest, NetworkConfig, NetworkMeta, ProcessManageRpc,
+        RunNetworkInstanceRequest, ValidateConfigRequest, ValidateConfigResponse,
     },
     rpc_types::controller::BaseController,
 };
@@ -27,7 +27,7 @@ where
     fn get_rpc_client(
         &self,
         identify: T,
-    ) -> Option<Box<dyn WebClientService<Controller = BaseController> + Send>>;
+    ) -> Option<Box<dyn ProcessManageRpc<Controller = BaseController> + Send>>;
 
     fn get_storage(&self) -> &impl Storage<T, C, E>;
 
@@ -636,7 +636,7 @@ mod tests {
         fn get_rpc_client(
             &self,
             _: (),
-        ) -> Option<Box<dyn WebClientService<Controller = BaseController> + Send>> {
+        ) -> Option<Box<dyn ProcessManageRpc<Controller = BaseController> + Send>> {
             // The session is unavailable for any read after PatchConfig.
             None
         }

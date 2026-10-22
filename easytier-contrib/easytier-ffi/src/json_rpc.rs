@@ -4,7 +4,6 @@ use std::{
 };
 
 use crate::{
-    config_server::in_config_server_callback,
     error::set_error_msg,
     state::ffi_context,
     strings::{c_str_to_string, optional_c_str_to_string},
@@ -25,11 +24,6 @@ pub(crate) unsafe fn call_json_rpc(
     }
     unsafe {
         *out_response_json = std::ptr::null();
-    }
-
-    if in_config_server_callback() {
-        set_error_msg("cannot call JSON RPC from config server callback");
-        return -1;
     }
 
     let service_name = match unsafe { c_str_to_string(service_name, "service_name") } {

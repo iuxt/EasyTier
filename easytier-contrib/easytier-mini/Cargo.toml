@@ -16,6 +16,6 @@ easytier = { workspace = true, features = [
     "proxy-cidr-monitor",
     "smoltcp",
     "tun",
-    "web-client",
+    "process-management",
 ] }
 tokio = { workspace = true, features = ["macros", "rt", "signal"] }

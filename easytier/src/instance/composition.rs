@@ -6,11 +6,6 @@ use easytier_core::gateway::proxy::wrapped_transport::WrappedTransportEngines;
 use easytier_core::gateway::vpn_portal::PortalHost;
 #[cfg(test)]
 use easytier_core::host::packet::{HostPacket, PacketSink};
-#[cfg(feature = "web-client")]
-use easytier_core::{
-    connectivity::manual::ManualTunnelConnector,
-    host::dns::{DnsRecordResolver, DnsResolver},
-};
 use easytier_core::{
     events::{CoreEvent, CoreEventSink},
     instance::{CoreHostAdapters, CoreInstance, CoreInstanceConfig, PacketEgressHost},
@@ -279,27 +274,6 @@ fn configure_runtime_core_host_adapters(
         }
     }
     adapters
-}
-
-#[cfg(feature = "web-client")]
-pub(crate) fn runtime_one_shot_manual_connector(
-    global_ctx: ArcGlobalCtx,
-    config: &TomlConfig,
-    process_runtime: Arc<CoreProcessRuntime>,
-) -> anyhow::Result<ManualTunnelConnector<NativeInstanceHost>> {
-    let normalized = CoreInstanceConfig::from_toml_with_host(config, &runtime_core_host_config())?;
-    let host = native_instance_host(global_ctx.clone());
-    let runtime_dns = native_host_runtime();
-    let dns: Arc<dyn DnsResolver> = runtime_dns.clone();
-    let dns_records: Arc<dyn DnsRecordResolver> = runtime_dns;
-    Ok(process_runtime.manual_connector(
-        host,
-        dns,
-        dns_records,
-        runtime_client_protocol_upgrader(global_ctx.clone()),
-        normalized.connectivity.endpoint_discovery,
-        normalized.connectivity.manual,
-    ))
 }
 
 #[cfg(test)]

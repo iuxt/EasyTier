@@ -4,8 +4,6 @@ members = [
     "easytier-core",
     "easytier-proto",
     "easytier",
-    "easytier-web",
-    "easytier-gui/src-tauri",
     "easytier-contrib/easytier-mini",
     "easytier-contrib/easytier-ffi",
     "easytier-contrib/easytier-uptime",
@@ -14,7 +12,7 @@ members = [
     "easytier-contrib/easytier-ohrs", # it needs ohrs sdk
     "easytier-contrib/easytier-ohrs/crates/*",
 ]
-default-members = ["easytier", "easytier-web"]
+default-members = ["easytier"]
 exclude = []
 
 [workspace.package]
@@ -83,7 +81,6 @@ sqlx = "0.8.6"
 strum = "0.28.0"
 stun_codec = "0.4.0"
 sys-locale = "0.3"
-tauri = "2.11.5"
 tempfile = "3.27.0"
 thiserror = "2.0"
 thunk-rs = { git = "https://github.com/EasyTier/thunk.git", default-features = false }

@@ -1,4 +1,4 @@
-//! Module-wide logging, initialized before any instance or WebClient is created.
+//! Module-wide logging, initialized before any instance is created.
 
 use std::{
     fmt::Write as _,
@@ -158,11 +158,6 @@ impl<W: Write + Send + 'static> crate::management::LoggerControl for Logger<W> {
             .to_string()
             .to_ascii_lowercase()
     }
-}
-
-#[cfg(all(target_os = "wasi", feature = "management"))]
-pub(super) fn control() -> Arc<dyn crate::management::LoggerControl> {
-    logger().clone()
 }
 
 #[cfg(test)]

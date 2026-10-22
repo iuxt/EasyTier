@@ -372,8 +372,8 @@ mod tests {
 
     use super::instance::{PeerConnInfo, PeerInfo, PeerRoutePair};
     use super::manage::{
-        ListNetworkInstanceRequest, ListNetworkInstanceResponse, WebClientService,
-        WebClientServiceClient, WebClientServiceDescriptor, WebClientServiceMethodDescriptor,
+        ListNetworkInstanceRequest, ListNetworkInstanceResponse, ProcessManageRpc,
+        ProcessManageRpcClient, ProcessManageRpcDescriptor, ProcessManageRpcMethodDescriptor,
     };
     use crate::proto::common::Uuid;
     use crate::proto::rpc_types::controller::BaseController;
@@ -409,11 +409,11 @@ mod tests {
     }
 
     #[derive(Clone, Default)]
-    struct WebClientServiceJsonCallHandler;
+    struct ProcessManageRpcJsonCallHandler;
 
     #[async_trait::async_trait]
-    impl Handler for WebClientServiceJsonCallHandler {
-        type Descriptor = WebClientServiceDescriptor;
+    impl Handler for ProcessManageRpcJsonCallHandler {
+        type Descriptor = ProcessManageRpcDescriptor;
         type Controller = BaseController;
 
         async fn call(
@@ -423,7 +423,7 @@ mod tests {
             input: Bytes,
         ) -> crate::proto::rpc_types::error::Result<Bytes> {
             match method {
-                WebClientServiceMethodDescriptor::ListNetworkInstance => {
+                ProcessManageRpcMethodDescriptor::ListNetworkInstance => {
                     let _req = ListNetworkInstanceRequest::decode(input.as_ref()).unwrap();
                     let resp = ListNetworkInstanceResponse {
                         inst_ids: vec![Uuid {
@@ -443,8 +443,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn web_client_service_call_json_method_supports_snake_and_proto_method_name() {
-        let client = WebClientServiceClient::new(WebClientServiceJsonCallHandler);
+    async fn process_manage_rpc_call_json_method_supports_snake_and_proto_method_name() {
+        let client = ProcessManageRpcClient::new(ProcessManageRpcJsonCallHandler);
 
         let snake_result = client
             .json_call_method(
@@ -476,8 +476,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn web_client_service_call_json_method_rejects_unknown_method() {
-        let client = WebClientServiceClient::new(WebClientServiceJsonCallHandler);
+    async fn process_manage_rpc_call_json_method_rejects_unknown_method() {
+        let client = ProcessManageRpcClient::new(ProcessManageRpcJsonCallHandler);
         let ret = client
             .json_call_method(
                 BaseController::default(),

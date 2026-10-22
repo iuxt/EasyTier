@@ -1,8 +1,6 @@
 //! Process-level management over the canonical Instance collection.
 
-#[cfg(all(feature = "management", any(test, target_os = "wasi")))]
-mod forwarded_rpc;
-#[cfg(feature = "web-client")]
+#[cfg(feature = "process-management")]
 mod full;
 mod instance_rpc;
 mod rpc_server_hook;
@@ -22,22 +20,15 @@ use easytier_proto::api::instance::{ConnectorManageRpcServer, PeerManageRpcServe
 pub use crate::instance::manager::{
     ConfigFileControl, ConfigFilePermission, DaemonGuard, InstanceManager, ProcessRuntimeProvider,
 };
-#[cfg(all(feature = "management", target_os = "wasi"))]
-pub(crate) use forwarded_rpc::{
-    ManagementRpcForwarder, register_forwarded_instance_management_rpc,
-};
-#[cfg(all(feature = "management", target_os = "wasi"))]
-pub(crate) use full::WebClientBackend;
-#[cfg(all(feature = "web-client", test))]
-pub(crate) use full::register_web_client_rpc;
+#[cfg(all(feature = "process-management", test))]
+pub(crate) use full::register_process_management_rpc;
 #[cfg(feature = "management")]
 pub use full::remote_client;
-#[cfg(feature = "web-client")]
+#[cfg(feature = "process-management")]
 pub use full::{
-    ConfigFileStorage, ConfigPatchPersistence, ConfigServerEndpoint, InstanceMutationHooks,
-    InstanceMutationResult, ProcessManagement, ProcessManagementRpc, UnsupportedConfigFileStorage,
-    WebClient, WebClientConfig, apply_config_patch, config_source_from_rpc, config_source_to_rpc,
-    network_instance_running_info,
+    ConfigFileStorage, ConfigPatchPersistence, InstanceMutationHooks, InstanceMutationResult,
+    ProcessManagement, ProcessManagementRpc, UnsupportedConfigFileStorage, apply_config_patch,
+    config_source_from_rpc, config_source_to_rpc, network_instance_running_info,
 };
 #[cfg(feature = "management")]
 pub use full::{

@@ -6,7 +6,7 @@ const { promisify } = require('node:util');
 
 const exec = promisify(execFile);
 
-const workflows = ['core', 'gui', 'mobile', 'test'];
+const workflows = ['core', 'test'];
 
 function releaseNotes(repository, baseline, sha, commits, runs) {
   const url = `https://github.com/${repository.owner}/${repository.repo}`;
@@ -118,9 +118,10 @@ async function prepare({ github, context, core, sha }) {
     ...repository, basehead: `${baseline.tag_name}...${sha}`, per_page: 100,
   }, response => response.data.commits);
   const { data: config } = await github.rest.repos.getContent({
-    ...repository, path: 'easytier-gui/src-tauri/tauri.conf.json', ref: sha,
+    ...repository, path: 'easytier/Cargo.toml', ref: sha,
   });
-  const { version } = JSON.parse(Buffer.from(config.content, 'base64').toString('utf8'));
+  const manifest = Buffer.from(config.content, 'base64').toString('utf8');
+  const version = manifest.match(/^version\s*=\s*"([^"]+)"/m)?.[1];
   if (!/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(version)) {
     throw new Error('The build must declare a valid release version.');
   }

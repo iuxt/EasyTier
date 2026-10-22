@@ -104,38 +104,36 @@ ip -n "$namespace_b" addr add 198.18.0.2/24 dev "$veth_b"
 ip -n "$namespace_a" link set "$veth_a" up
 ip -n "$namespace_b" link set "$veth_b" up
 
-common_args=(
-    --network-name codex-perf
-    --network-secret codex-perf
-    --disable-p2p true
-    --disable-tcp-hole-punching true
-    --disable-udp-hole-punching true
-    --disable-upnp true
-    --disable-ipv6 true
-    --multi-thread false
-    --mtu 1360
-    --console-log-level warn
-)
+write_config() {
+    local path=$1 name=$2 address=$3 listeners=$4 peer=$5
+    cat >"$path" <<EOF
+hostname = "$name"
+instance_name = "$name"
+ipv4 = "$address/24"
+listeners = $listeners
+$peer
+[network_identity]
+network_name = "codex-perf"
+network_secret = "codex-perf"
+[flags]
+disable_p2p = true
+disable_tcp_hole_punching = true
+disable_udp_hole_punching = true
+disable_upnp = true
+enable_ipv6 = false
+multi_thread = false
+mtu = 1360
+[console_logger]
+level = "warn"
+EOF
+}
+write_config "$output_dir/a.toml" perf-a 10.250.0.1 "[\"${protocol}://0.0.0.0:11010\"]" ""
+write_config "$output_dir/b.toml" perf-b 10.250.0.2 "[]" "peer = [{ uri = \"${protocol}://198.18.0.1:11010\" }]"
 
-ip netns exec "$namespace_a" taskset -c "$core_a_cpu" "$binary" \
-    "${common_args[@]}" \
-    --hostname perf-a \
-    --instance-name perf-a \
-    --ipv4 10.250.0.1 \
-    --listeners "${protocol}://0.0.0.0:11010" \
-    >"$output_dir/core-a.log" 2>&1 &
+ip netns exec "$namespace_a" taskset -c "$core_a_cpu" "$binary" -c "$output_dir/a.toml" >"$output_dir/core-a.log" 2>&1 &
 core_a_pid=$!
-
 sleep 1
-
-ip netns exec "$namespace_b" taskset -c "$core_b_cpu" "$binary" \
-    "${common_args[@]}" \
-    --hostname perf-b \
-    --instance-name perf-b \
-    --ipv4 10.250.0.2 \
-    --no-listener \
-    --peers "${protocol}://198.18.0.1:11010" \
-    >"$output_dir/core-b.log" 2>&1 &
+ip netns exec "$namespace_b" taskset -c "$core_b_cpu" "$binary" -c "$output_dir/b.toml" >"$output_dir/core-b.log" 2>&1 &
 core_b_pid=$!
 
 connected=false

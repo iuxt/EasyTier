@@ -213,8 +213,15 @@ no_tun = true
 enable_ipv6 = false
 EOF
 
-  "$CORE_BIN" --config-dir "$TMPDIR_PATH" --rpc-portal "127.0.0.1:${rpc_port}" \
-    >"$TMPDIR_PATH/core.log" 2>&1 &
+  mkdir -p "$TMPDIR_PATH/networks"
+  mv "$TMPDIR_PATH/inst-a.toml" "$TMPDIR_PATH/networks/"
+  mv "$TMPDIR_PATH/inst-b.toml" "$TMPDIR_PATH/networks/"
+  cat >"$TMPDIR_PATH/config.toml" <<EOF
+[core]
+config_dir = "networks"
+rpc_portal = "127.0.0.1:${rpc_port}"
+EOF
+  "$CORE_BIN" -c "$TMPDIR_PATH/config.toml" >"$TMPDIR_PATH/core.log" 2>&1 &
   CORE_PID=$!
   print_section "Started easytier-core"
   printf 'pid=%s\n' "$CORE_PID"

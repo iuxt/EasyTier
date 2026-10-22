@@ -11,8 +11,8 @@ if [[ ! -f "${proto_root}/api_instance.proto" ]]; then
     exit 1
 fi
 
-if [[ "$(protoc --version)" != "libprotoc 35.1" && "$(protoc --version)" != "libprotoc 36.1" ]]; then
-    echo "protoc 35.1 or 36.1 is required" >&2
+if [[ "$(protoc --version)" != "libprotoc 35.1" && "$(protoc --version)" != "libprotoc 36.1" && "$(protoc --version)" != "libprotoc 36.2" ]]; then
+    echo "protoc 35.1, 36.1 or 36.2 is required" >&2
     exit 1
 fi
 if [[ "$(protoc-gen-go --version)" != "protoc-gen-go v1.36.11" ]]; then
@@ -32,7 +32,6 @@ protoc \
     --go_opt=Mapi_instance.proto=github.com/easytier/easytier/easytier-go/proto/api/instance \
     --go_opt=Mapi_config.proto=github.com/easytier/easytier/easytier-go/proto/api/config \
     --go_opt=Mapi_manage.proto=github.com/easytier/easytier/easytier-go/proto/api/manage \
-    --go_opt=Mweb.proto=github.com/easytier/easytier/easytier-go/proto/web \
     "${proto_root}/annotations.proto" \
     "${proto_root}/common.proto" \
     "${proto_root}/error.proto" \
@@ -40,5 +39,4 @@ protoc \
     "${proto_root}/peer_rpc.proto" \
     "${proto_root}/api_instance.proto" \
     "${proto_root}/api_config.proto" \
-    "${proto_root}/api_manage.proto" \
-    "${proto_root}/web.proto"
+    "${proto_root}/api_manage.proto"

@@ -8,14 +8,6 @@
 			"path": "easytier"
 		},
 		{
-			"name": "gui",
-			"path": "easytier-gui"
-		},
-		{
-			"name": "web",
-			"path": "easytier-web"
-		},
-		{
 			"name": "ffi",
 			"path": "easytier-contrib/easytier-ffi"
 		},
@@ -30,10 +22,6 @@
 		{
 			"name": "uptime",
 			"path": "easytier-contrib/easytier-uptime"
-		},
-		{
-			"name": "vpnservice",
-			"path": "tauri-plugin-vpnservice"
 		},
 		{
 			"name": "rpc-build",

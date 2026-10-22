@@ -85,96 +85,13 @@ if err := host.SetLogLevel(ctx, corehost.LogLevelDebug); err != nil {
 ```
 
 `host.LogLevel(ctx)` reads the current level. `LogLevelOff` disables all logs.
-The level applies to every instance and the WebClient in this Host; other
-Hosts are independent. The WebClient's existing `LoggerRpc` controls the same
-level. Creating or closing an instance never resets it.
+The level applies to every instance in this Host; other
+Hosts are independent. level. Creating or closing an instance never resets it.
 
 Writes are synchronous, so the writer must not call back into this Host.
 Writer errors do not interrupt guest execution, and the Host does not close
 the writer.
 
-### Web Client management
-
-A host can also connect to an EasyTier Web configuration server. The embedded
-Rust WebClient retains the config-server protocol, heartbeat, reconnect, and
-secure-tunnel behavior; Go owns the resulting process-level instances:
-
-```go
-webClient, err := host.ConnectWebClient(ctx, corehost.WebClientOptions{
-    Endpoint:   "udp://config.example.com:22020/team-token",
-    MachineID:  "11111111-2222-4333-8444-555555555555",
-    Hostname:   "edge-gateway",
-    SecureMode: true,
-})
-if err != nil {
-    return err
-}
-defer webClient.Close(ctx)
-
-for _, instance := range host.Instances() {
-    log.Printf("%s: %v", instance.ID(), instance.State())
-}
-```
-
-`MachineID` must be a stable UUID persisted by the application. `Endpoint`
-accepts `tcp://`, `udp://`, or the same shorthand token understood by native
-EasyTier. WebSocket transports are not part of this initial host integration.
-One WebClient may run per `Host`.
-
-Web-created instances support the complete `WebClientService` lifecycle and
-status surface. Instances created through `Host.CreateInstance` are included
-in heartbeats and status listings, but are reported as read-only and cannot be
-overwritten, retained away, or deleted by the Web server. `Host.Instances`
-returns both ownership classes; Web-created instances use the same `Instance`
-data-plane and management APIs as application-created instances.
-
-`Instance.ListPeer` and `Instance.ListRoute` call the embedded core's existing
-instance-scoped management RPCs and return peer and route slices directly.
-Their element types reuse the generated EasyTier protobuf models, while the
-request and response envelopes stay internal to the host. Callers never
-construct wire bytes or a separate RPC client. Cancelling the context frees
-the pending guest operation.
-
-`InstanceConfigBuilder` exposes the instance settings supported by this host:
-network identity, hostname, virtual IPv4 address, peers and listeners, IPv4 and
-IPv6 STUN servers, Core-owned TCP and UDP port forwards, P2P policy,
-hole-punching methods, encryption, and secure mode. Omitted optional settings
-retain the embedded core's defaults. Calling `STUNServers()` or
-`STUNServersV6()` with no arguments explicitly selects an empty list.
-
-`AddPortForwards` accepts typed rules containing a `PortForwardTCP` or
-`PortForwardUDP` protocol and `netip.AddrPort` bind and destination addresses.
-The embedded core owns their listener, overlay-flow, reload, and shutdown
-lifecycle.
-
-Secure mode can generate an X25519 key with `SecureMode()` or use a caller
-supplied raw 32-byte private key with `SecureModeWithPrivateKey(key)`. The
-public key is always derived by the builder. Secure mode currently requires a
-non-empty shared network secret; credential-based networks are a separate
-future configuration path.
-
-`Dial` returns `net.Conn`, `Listen` returns `net.Listener`, and `ListenPacket`
-returns `net.PacketConn`. ABI v2 currently supports `tcp`, `tcp4`, `udp`, and
-`udp4`; destinations must be IPv4 literals and listeners bind all overlay IPv4
-addresses. These APIs are overlay-only: an absent EasyTier route is returned as
-a normal network error and never falls back to the host network.
-
-See [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) for current UDP and
-port-forward edge cases.
-
-No public type exposes wazero runtimes, WebAssembly pointers, raw handles,
-submit/take operations, or the cooperative `drive` loop. Each host owns one
-wazero runtime, guest module, and host completion domain; each instance is
-represented by an EasyTier guest handle. Per-instance drivers serialize guest
-calls through the host. The engine continues driving EasyTier after `Start`
-returns, calls `easytier_instance_notify_completions` before driving a host
-completion, and drains bounded data-plane completion batches after each guest
-turn.
-
-The host serializes the typed configuration to TOML internally, wraps it in
-EasyTier's version 14 create envelope, and adds the configured environment
-snapshot. TOML, schema versions, and JSON envelopes are not
-application-facing APIs.
 
 ## Cross-platform TUN example
 
@@ -243,22 +160,6 @@ listener or implement port-forward management. It waits up to 10 seconds for a
 matching overlay or proxy route before dialing; override that limit with
 `--connect-timeout`.
 
-## Web Client example
-
-The Web Client example registers a Host with an EasyTier Web configuration
-server and lets the server create, delete, and inspect its instances:
-
-```sh
-go run ./examples/web-client \
-  --web-endpoint tcp://config.example.com:22020/team-token \
-  --web-machine-id 11111111-2222-4333-8444-555555555555 \
-  --web-hostname edge-gateway \
-  --web-secure
-```
-
-`--web-machine-id` must remain stable across restarts. `--web-hostname` defaults
-to the system hostname. This example manages Host instances but does not create
-or attach an operating-system TUN interface.
 
 ## Performance compared with native EasyTier
 

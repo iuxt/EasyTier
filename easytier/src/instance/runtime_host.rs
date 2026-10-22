@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-#[cfg(feature = "web-client")]
+#[cfg(feature = "process-management")]
 use easytier_core::config::runtime::CoreInstanceRuntimeConfig;
 use easytier_core::{
     gateway::dhcp::DhcpHost, host::packet::HostPacketReceiver, instance::CorePacketPlane,
@@ -107,7 +107,7 @@ impl NativeInstanceRuntimeHost {
         self.event_journal.events()
     }
 
-    #[cfg(feature = "web-client")]
+    #[cfg(feature = "process-management")]
     fn synchronize_global_ctx_config(
         &self,
         patch: &crate::proto::api::config::InstanceConfigPatch,
@@ -207,7 +207,7 @@ mod tests {
         )
     }
 
-    #[cfg(feature = "web-client")]
+    #[cfg(feature = "process-management")]
     fn runtime_config(config: &TomlConfig) -> CoreInstanceRuntimeConfig {
         let normalized = easytier_core::instance::CoreInstanceConfig::from_toml(config).unwrap();
         CoreInstanceRuntimeConfig {
@@ -230,7 +230,7 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "web-client")]
+    #[cfg(feature = "process-management")]
     #[test]
     fn runtime_host_synchronizes_normalized_config_without_management() {
         use easytier_core::{config::toml::ConfigLoader as _, instance::InstanceRuntimeHost as _};
@@ -274,7 +274,7 @@ mod tests {
         assert!(global_ctx.get_flags().prefer_peer_relay);
     }
 
-    #[cfg(feature = "web-client")]
+    #[cfg(feature = "process-management")]
     #[test]
     fn runtime_host_preserves_dhcp_ipv4_during_config_synchronization() {
         use easytier_core::{config::toml::ConfigLoader as _, instance::InstanceRuntimeHost as _};
