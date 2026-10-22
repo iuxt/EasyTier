@@ -9,6 +9,8 @@ mod host_runtime;
 pub mod instance;
 mod vpn_portal;
 
+#[cfg(feature = "cli")]
+mod cli;
 pub mod common;
 #[cfg(feature = "management")]
 pub mod core;

@@ -9,10 +9,14 @@ EasyTier is a cross-platform P2P network built with Rust and Tokio. It supports 
 Install Rust 1.95, the Protocol Buffers compiler and platform C/C++ build tools.
 
 ```bash
-cargo build -p easytier --release --bins
+cargo build -p easytier --release --bin easytier-core
 ```
 
-This produces `easytier-core` and the local management tool `easytier-cli`.
+This produces `target/release/easytier-core`, including both the network process and management commands. The Docker image and `build.sh` exports also contain only this executable.
+
+The source workspace requires three directories: `easytier/` contains the native program, `easytier-core/` contains its portable networking library, and `easytier-proto/` contains the shared protocol and RPC types. Platform bindings, contrib tools, and Go/JavaScript SDKs have been removed.
+
+`easytier-core` provides both networking and diagnostic management commands. Only this executable needs to be built and installed.
 
 ## Configure and start
 
@@ -29,7 +33,7 @@ sudo ./target/release/easytier-core -c /etc/easytier/config.toml
 
 The default is `config.toml` beside the executable, regardless of the working directory. Environment variables and network/logging startup arguments are no longer accepted. Stdin is not a configuration source. `$VAR`, `${VAR}` and `~` remain literal. A relative `-c` path uses the working directory; paths inside a file use that file's directory. Missing, unreadable or invalid files cause an error.
 
-Process settings belong to `[core]`, with logging in `[console_logger]` and `[file_logger]`. `[core].config_dir` loads additional network files; only the main file supplies process and logging settings. The Web server, outbound Web configuration clients, desktop GUI and mobile GUI have been removed. SDKs retain TOML text interfaces for embedded hosts.
+Process settings belong to `[core]`, with logging in `[console_logger]` and `[file_logger]`. `[core].config_dir` loads additional network files; only the main file supplies process and logging settings. The Web server, outbound Web configuration clients, desktop GUI and mobile GUI have been removed.
 
 ## Connect two nodes
 
@@ -54,11 +58,18 @@ uri = "udp://NODE_A_PUBLIC_IP:11010"
 
 Start both nodes with `easytier-core -c /path/to/config.toml`. Add further peers or public relay endpoints with additional `[[peer]]` sections. See the template for subnet proxies and WireGuard portals.
 
+In another terminal, query the running process:
+
 ```bash
-easytier-cli peer
-easytier-cli route
+easytier-core peer
+easytier-core route
+easytier-core node
+# Management options go before the subcommand.
+easytier-core -n node-a -o json peer
 ping 10.144.0.2
 ```
+
+Management commands always connect to the local `127.0.0.1:15888` endpoint and do not accept a remote address. Keep `[core].rpc_portal` set to this address to query the running local process. They do not read startup configuration or start a new network process. Startup options such as `-c` and `--check-config` cannot be combined with management subcommands. Run `easytier-core --help` for all commands or `easytier-core peer --help` for subcommand help.
 
 ## Related Projects
 

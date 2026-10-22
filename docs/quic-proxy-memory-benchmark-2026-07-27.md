@@ -35,8 +35,7 @@ cargo build --release \
   --target x86_64-unknown-linux-musl \
   -p easytier \
   --features jemalloc \
-  --bin easytier-core \
-  --bin easytier-cli
+  --bin easytier-core
 ```
 
 两个二进制均为 stripped static PIE。当前分支明确使用 musl 和

@@ -34,9 +34,9 @@ RUN --mount=type=cache,id=easytier-registry-${TARGETARCH},target=/usr/local/carg
     --mount=type=cache,id=easytier-git-${TARGETARCH},target=/usr/local/cargo/git,sharing=locked \
     --mount=type=cache,id=easytier-target-${RUST_VERSION}-${TARGETARCH},target=/build/target,sharing=locked \
     cargo build --locked --release --package easytier \
-        --bin easytier-core --bin easytier-cli \
+        --bin easytier-core \
     && mkdir -p /out \
-    && cp /build/target/release/easytier-core /build/target/release/easytier-cli /out/
+    && cp /build/target/release/easytier-core /out/
 
 # Export only executables, without the builder or runtime filesystem.
 FROM scratch AS binaries

@@ -1,5 +1,5 @@
 # Only send Rust workspace inputs. In particular, exclude local config/secrets,
-# .git, target output, and unrelated frontend or Go build artifacts.
+# .git, target output, and unrelated build artifacts.
 **
 !Cargo.toml
 !Cargo.lock
@@ -13,8 +13,6 @@
 !easytier-core/**
 !easytier-proto/
 !easytier-proto/**
-!easytier-contrib/
-!easytier-contrib/**
 **/target
 **/node_modules
 **/dist

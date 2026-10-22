@@ -5,12 +5,12 @@
 Install Rust 1.95, LLVM/Clang and the Protocol Buffers compiler. Linux network integration tests also need bridge-utils, iproute2 and network administration privileges. The Linux linker configuration uses mold.
 
 ```bash
-cargo build -p easytier --bins
+cargo build -p easytier --bin easytier-core
 cargo fmt --all -- --check
 cargo test -p easytier --test config_logging
 ```
 
-`easytier-core/` owns the portable network library; `easytier/` owns native Core/CLI; `easytier-proto/` owns protocols. Platform bindings and tools live in `easytier-contrib/`, with Go and JavaScript hosts in `easytier-go/` and `easytier-js/`.
+`easytier-core/` owns the portable network library; `easytier/` owns native Core/CLI; `easytier-proto/` owns protocols. All three directories are required to build the native program. Platform bindings, contrib tools, and Go/JavaScript SDKs have been removed.
 
 Copy the root `config.toml` template beside the executable or select it with `-c FILE.toml`. All native Core startup configuration comes from files.
 

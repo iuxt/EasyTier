@@ -16,11 +16,9 @@ docker login -u iuxt
 ```text
 target/dist/
 ├── linux_amd64/
-│   ├── easytier-core
-│   └── easytier-cli
+│   └── easytier-core
 └── linux_arm64/
-    ├── easytier-core
-    └── easytier-cli
+    └── easytier-core
 ```
 
 这些可执行文件使用 GNU libc，适用于 glibc 2.36 及以上的对应架构 Linux，例如 Debian 12；macOS、Windows 和使用 musl 的 Alpine 不能直接运行。镜像已包含所需运行库。
@@ -54,7 +52,7 @@ docker run -d --name easytier --restart unless-stopped \
   -v "$PWD/config.toml:/etc/easytier/config.toml:ro" \
   iuxt/easytier:latest
 
-docker exec easytier easytier-cli peer
+docker exec easytier easytier-core peer
 ```
 
 镜像默认执行 `easytier-core -c /etc/easytier/config.toml`，可在镜像名后追加参数以覆盖默认参数。脚本不保存密码，使用 `docker login` 管理的登录凭据；默认运行会更新 Docker Hub 上的 `latest` 标签。

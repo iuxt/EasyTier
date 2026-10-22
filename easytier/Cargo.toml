@@ -21,11 +21,6 @@ path = "src/easytier-core.rs"
 test = false
 required-features = ["management"]
 
-[[bin]]
-name = "easytier-cli"
-path = "src/easytier-cli.rs"
-required-features = ["management", "cli"]
-
 [lib]
 name = "easytier"
 path = "src/lib.rs"

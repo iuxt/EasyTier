@@ -6,7 +6,6 @@ SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 
 CORE_BIN=${CORE_BIN:-"$REPO_ROOT/target/debug/easytier-core"}
-CLI_BIN=${CLI_BIN:-"$REPO_ROOT/target/debug/easytier-cli"}
 TMPDIR_PATH=""
 CORE_PID=""
 PYTHON_BIN=${PYTHON_BIN:-python3}
@@ -24,12 +23,12 @@ print_output() {
 }
 
 build_binaries() {
-  print_section "Building easytier-core and easytier-cli"
-  cargo build -p easytier --bin easytier-core --bin easytier-cli
+  print_section "Building easytier-core with integrated management commands"
+  cargo build -p easytier --bin easytier-core
 }
 
 ensure_binaries() {
-  if [[ "${SKIP_BUILD:-0}" != "1" ]] || [[ ! -x "$CORE_BIN" ]] || [[ ! -x "$CLI_BIN" ]]; then
+  if [[ "${SKIP_BUILD:-0}" != "1" ]] || [[ ! -x "$CORE_BIN" ]]; then
     build_binaries
   fi
 }
@@ -37,7 +36,7 @@ ensure_binaries() {
 make_tmpdir() {
   "$PYTHON_BIN" - <<'PY'
 import tempfile
-print(tempfile.mkdtemp(prefix="easytier-cli-e2e-"))
+print(tempfile.mkdtemp(prefix="easytier-core-management-e2e-"))
 PY
 }
 
@@ -50,22 +49,24 @@ shutil.rmtree(os.environ["TMPDIR_TO_DELETE"], ignore_errors=True)
 PY
 }
 
-alloc_port() {
+check_management_port() {
   "$PYTHON_BIN" - <<'PY'
 import socket
 
 sock = socket.socket()
-sock.bind(("127.0.0.1", 0))
-print(sock.getsockname()[1])
+try:
+    sock.bind(("127.0.0.1", 15888))
+except OSError as error:
+    raise SystemExit(f"Local management port 15888 is in use; stop the existing core before testing: {error}")
+print(15888)
 sock.close()
 PY
 }
 
-wait_for_cli() {
-  local rpc_port="$1"
+wait_for_management() {
   local attempts=0
   while (( attempts < 50 )); do
-    if "$CLI_BIN" -p "127.0.0.1:${rpc_port}" -o json node >/dev/null 2>&1; then
+    if "$CORE_BIN" -o json node >/dev/null 2>&1; then
       return 0
     fi
     attempts=$((attempts + 1))
@@ -104,11 +105,12 @@ assert_text_output() {
 
 assert_multi_instance_json() {
   local json_payload="$1"
-  JSON_PAYLOAD="$json_payload" "$PYTHON_BIN" - <<'PY'
+  JSON_PAYLOAD="$json_payload" JSON_RESULT_TYPE="${2:-dict}" "$PYTHON_BIN" - <<'PY'
 import json
 import os
 
 data = json.loads(os.environ["JSON_PAYLOAD"])
+result_type = {"dict": dict, "list": list}[os.environ["JSON_RESULT_TYPE"]]
 assert isinstance(data, list), data
 assert len(data) == 2, data
 
@@ -117,7 +119,7 @@ assert names == {"e2e-inst-a", "e2e-inst-b"}, names
 
 for item in data:
     assert item["instance_id"], item
-    assert isinstance(item["result"], dict), item
+    assert isinstance(item["result"], result_type), item
 PY
 }
 
@@ -167,14 +169,14 @@ main() {
 
   ensure_binaries
 
+  local rpc_port
+  rpc_port=$(check_management_port)
+  print_section "Checked local management port"
+  printf '%s\n' "$rpc_port"
+
   TMPDIR_PATH=$(make_tmpdir)
   print_section "Created temporary test directory"
   printf '%s\n' "$TMPDIR_PATH"
-
-  local rpc_port
-  rpc_port=$(alloc_port)
-  print_section "Allocated RPC port"
-  printf '%s\n' "$rpc_port"
 
   cleanup() {
     if [[ -n "$CORE_PID" ]] && kill -0 "$CORE_PID" >/dev/null 2>&1; then
@@ -226,59 +228,59 @@ EOF
   print_section "Started easytier-core"
   printf 'pid=%s\n' "$CORE_PID"
 
-  wait_for_cli "$rpc_port"
+  wait_for_management
   print_output "easytier-core startup log" "$(cat "$TMPDIR_PATH/core.log")"
 
   local text_output
   run_cmd text_output \
     "Case 1: node fanout in table mode" \
-    "$CLI_BIN" -p "127.0.0.1:${rpc_port}" node
+    "$CORE_BIN" node
   assert_text_output "$text_output"
 
   local json_output
   run_cmd json_output \
     "Case 2: node fanout in JSON mode" \
-    "$CLI_BIN" -p "127.0.0.1:${rpc_port}" -o json node
+    "$CORE_BIN" -o json node
   assert_multi_instance_json "$json_output"
 
   local single_output
   run_cmd single_output \
     "Case 3: explicit instance selector stays single-instance" \
-    "$CLI_BIN" -p "127.0.0.1:${rpc_port}" --instance-name e2e-inst-a -o json node
+    "$CORE_BIN" --instance-name e2e-inst-a -o json node
   assert_single_instance_json "$single_output"
 
   local set_whitelist_output
   run_cmd set_whitelist_output \
     "Case 4: whitelist set-tcp fans out to all instances" \
-    "$CLI_BIN" -p "127.0.0.1:${rpc_port}" whitelist set-tcp 80,443
+    "$CORE_BIN" whitelist set-tcp 80,443
 
   local whitelist_output
   run_cmd whitelist_output \
     "Case 5: whitelist show confirms fanout write" \
-    "$CLI_BIN" -p "127.0.0.1:${rpc_port}" -o json whitelist show
+    "$CORE_BIN" -o json whitelist show
   assert_whitelist_fanout "$whitelist_output"
 
   local clear_whitelist_output
   run_cmd clear_whitelist_output \
     "Case 6: explicit selector write only touches one instance" \
-    "$CLI_BIN" -p "127.0.0.1:${rpc_port}" --instance-name e2e-inst-b whitelist clear-tcp
+    "$CORE_BIN" --instance-name e2e-inst-b whitelist clear-tcp
 
   local cleared_output
   run_cmd cleared_output \
     "Case 7: whitelist show confirms single-instance write isolation" \
-    "$CLI_BIN" -p "127.0.0.1:${rpc_port}" -o json whitelist show
+    "$CORE_BIN" -o json whitelist show
   assert_single_instance_write "$cleared_output"
 
   local credential_table
   run_cmd credential_table \
     "Case 8: credential peers table fans out to all instances" \
-    "$CLI_BIN" -p "127.0.0.1:${rpc_port}" credential peers
+    "$CORE_BIN" credential peers
   assert_text_output "$credential_table"
 
   local credential_json
   run_cmd credential_json \
     "Case 9: credential peers JSON preserves instance wrappers" \
-    "$CLI_BIN" -p "127.0.0.1:${rpc_port}" -o json credential peers
+    "$CORE_BIN" -o json credential peers
   assert_multi_instance_json "$credential_json"
   JSON_PAYLOAD="$credential_json" "$PYTHON_BIN" - <<'PY'
 import json
@@ -291,7 +293,7 @@ PY
   local credential_single
   run_cmd credential_single \
     "Case 10: credential peers explicit selector returns one instance" \
-    "$CLI_BIN" -p "127.0.0.1:${rpc_port}" --instance-name e2e-inst-a -o json credential peers
+    "$CORE_BIN" --instance-name e2e-inst-a -o json credential peers
   JSON_PAYLOAD="$credential_single" "$PYTHON_BIN" - <<'PY'
 import json
 import os
@@ -299,8 +301,21 @@ import os
 assert json.loads(os.environ["JSON_PAYLOAD"]) == {"credentials": []}
 PY
 
+  local peer_output
+  run_cmd peer_output \
+    "Case 11: peer query works while the core is running" \
+    "$CORE_BIN" -o json peer
+  assert_multi_instance_json "$peer_output" list
+
+  local route_output
+  run_cmd route_output \
+    "Case 12: route query works while the core is running" \
+    "$CORE_BIN" -o json route
+  assert_multi_instance_json "$route_output" list
+  kill -0 "$CORE_PID"
+
   print_section "Result"
-  echo "CLI multi-instance E2E passed"
+  echo "Core management multi-instance E2E passed"
 }
 
 main "$@"

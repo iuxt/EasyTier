@@ -4,10 +4,10 @@ On a node that stores the issued credentials, list their currently authenticated
 direct peers:
 
 ```sh
-easytier-cli credential peers
+easytier-core credential peers
 
 # Select one network instance and return machine-readable output.
-easytier-cli --instance-name my-network --output json credential peers
+easytier-core --instance-name my-network --output json credential peers
 ```
 
 The table associates each credential ID with peer IDs, virtual IPv4/IPv6

@@ -8,24 +8,12 @@
 			"path": "easytier"
 		},
 		{
-			"name": "ffi",
-			"path": "easytier-contrib/easytier-ffi"
+			"name": "network-library",
+			"path": "easytier-core"
 		},
 		{
-			"name": "magisk",
-			"path": "easytier-contrib/easytier-magisk"
-		},
-		{
-			"name": "openharmony",
-			"path": "easytier-contrib/easytier-ohrs"
-		},
-		{
-			"name": "uptime",
-			"path": "easytier-contrib/easytier-uptime"
-		},
-		{
-			"name": "rpc-build",
-			"path": "easytier-rpc-build"
+			"name": "proto",
+			"path": "easytier-proto"
 		}
 	],
 	"settings": {

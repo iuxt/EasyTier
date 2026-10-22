@@ -9,10 +9,14 @@ EasyTier 是一个使用 Rust 和 Tokio 实现的跨平台 P2P 组网工具，�
 需要 Rust 1.95、Protobuf 编译器以及平台对应的 C/C++ 构建工具。
 
 ```bash
-cargo build -p easytier --release --bins
+cargo build -p easytier --release --bin easytier-core
 ```
 
-生成 `easytier-core`（组网进程）和 `easytier-cli`（本地诊断与管理工具）。
+生成 `target/release/easytier-core`（包含组网进程和诊断管理命令）。Docker 镜像和 `build.sh` 导出的文件也只包含这个程序。
+
+源码工作区需要保留三个目录：`easytier/` 是原生程序，`easytier-core/` 是其可移植网络库，`easytier-proto/` 是共享协议及 RPC 类型。平台绑定、contrib 附加工具和 Go/JavaScript SDK 已移除。
+
+`easytier-core` 同时提供组网和诊断管理命令，只需构建和安装这一个程序。
 
 ## 配置与启动
 
@@ -31,7 +35,7 @@ sudo ./target/release/easytier-core -c /etc/easytier/config.toml
 
 不再支持通过环境变量或网络/日志启动参数设置配置，也不支持 stdin 配置。文件中的 `$VAR`、`${VAR}` 和 `~` 按字面值读取。`-c` 的相对路径相对于启动工作目录；文件中的相对路径相对于该文件所在目录。文件缺失、无法读取或 TOML 无效时退出报错。
 
-进程参数位于 `[core]`，日志位于 `[console_logger]` 和 `[file_logger]`。额外网络文件可通过 `[core].config_dir` 配置；只有主配置文件的进程和日志设置生效。Web 配置服务、远程 Web 配置客户端、桌面和移动 GUI 已移除。SDK 中的 TOML 文本接口继续用于嵌入式宿主。
+进程参数位于 `[core]`，日志位于 `[console_logger]` 和 `[file_logger]`。额外网络文件可通过 `[core].config_dir` 配置；只有主配置文件的进程和日志设置生效。Web 配置服务、远程 Web 配置客户端、桌面和移动 GUI 已移除。
 
 ## 两个节点组网
 
@@ -57,11 +61,16 @@ uri = "udp://NODE_A_PUBLIC_IP:11010"
 两台机器均使用 `easytier-core -c /path/to/config.toml` 启动。公共中继节点也通过 `[[peer]]` 指定，可重复添加。需要子网代理、静态路由或 WireGuard 门户时，参照模板对应章节。
 
 ```bash
-# 检查本地运行状态
-./target/release/easytier-cli peer
-./target/release/easytier-cli route
+# 在另一个终端查询运行中的进程
+./target/release/easytier-core peer
+./target/release/easytier-core route
+./target/release/easytier-core node
+# 指定网络实例和 JSON 输出（选项放在子命令前）
+./target/release/easytier-core -n node-a -o json peer
 ping 10.144.0.2
 ```
+
+管理子命令固定连接本机 `127.0.0.1:15888`，不提供远程地址参数。请保持 `[core].rpc_portal` 使用此地址，以便直接查询本机运行状态。它们不会读取启动配置或启动新的组网进程；`-c`、`--check-config` 等启动选项不能与管理子命令混用。使用 `easytier-core --help` 查看全部命令，或用 `easytier-core peer --help` 查看子命令帮助。
 
 ## 相关项目
 

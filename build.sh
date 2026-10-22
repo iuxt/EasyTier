@@ -38,8 +38,8 @@ usage() {
   PLATFORMS=linux/arm64 ./build.sh --binaries-only
   IMAGE=iuxt/easytier:v2.7.0 ./build.sh --image-only
 
-二进制输出：$OUTPUT_DIR/linux_amd64/{easytier-core,easytier-cli}
-            $OUTPUT_DIR/linux_arm64/{easytier-core,easytier-cli}
+二进制输出：$OUTPUT_DIR/linux_amd64/easytier-core
+            $OUTPUT_DIR/linux_arm64/easytier-core
 不推送时：  $OUTPUT_DIR/easytier-image.oci.tar
 EOF
 }

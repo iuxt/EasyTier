@@ -21,7 +21,7 @@
 
 .NOTES
     Administrator privileges are required.
-    After installation, run: easytier-cli service install
+    After installation, run: easytier-core service install
     to register EasyTier as a system service.
 #>
 param(

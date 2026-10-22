@@ -5,12 +5,12 @@
 需要 Rust 1.95、LLVM/Clang 和 Protobuf 编译器。Linux 网络集成测试还需要 bridge-utils、iproute2 和网络管理权限；`.cargo/config.toml` 使用 mold 链接器。
 
 ```bash
-cargo build -p easytier --bins
+cargo build -p easytier --bin easytier-core
 cargo fmt --all -- --check
 cargo test -p easytier --test config_logging
 ```
 
-项目结构：`easytier-core/` 为可移植网络库，`easytier/` 为原生 Core/CLI，`easytier-proto/` 为协议，`easytier-contrib/` 为各平台绑定及工具，`easytier-go/`、`easytier-js/` 为宿主集成。
+项目结构：`easytier-core/` 为可移植网络库，`easytier/` 为原生 Core/CLI，`easytier-proto/` 为协议。编译原生程序必须保留这三个目录；平台绑定、contrib 附加工具和 Go/JavaScript SDK 已移除。
 
 运行前将根目录 `config.toml` 模板复制到可执行文件旁，或通过 `-c FILE.toml` 指定。所有 Core 启动配置只从文件读取。
 

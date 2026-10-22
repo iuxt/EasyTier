@@ -5,7 +5,7 @@ use crate::{
     rpc_service::ApiRpcServer,
     utils::panic::setup_panic_handler,
 };
-use clap::{CommandFactory, Parser};
+use clap::{CommandFactory, FromArgMatches, Parser};
 use guarden::defer;
 #[cfg(feature = "jemalloc-prof")]
 use jemalloc_ctl::{Access as _, AsName as _, epoch, stats};
@@ -68,7 +68,7 @@ fn dump_profile(_cur_allocated: usize) {
 
 #[derive(Parser, Debug)]
 #[command(name = "easytier-core", author, version = EASYTIER_VERSION,
-    about = "EasyTier：所有启动配置均从 TOML 文件读取")]
+    about = "EasyTier：从 TOML 文件启动网络，或通过子命令管理运行中的进程")]
 struct Cli {
     #[arg(
         short = 'c',
@@ -83,9 +83,51 @@ struct Cli {
 
     #[arg(long, help = "生成命令行补全脚本")]
     gen_autocomplete: Option<ShellType>,
+
+    #[cfg(feature = "cli")]
+    #[command(flatten)]
+    management_options: crate::cli::ManagementOptions,
+
+    #[cfg(feature = "cli")]
+    #[command(subcommand)]
+    command: Option<crate::cli::ManagementCommand>,
 }
 
 impl Cli {
+    fn try_parse_from<I, T>(args: I) -> Result<Self, clap::Error>
+    where
+        I: IntoIterator<Item = T>,
+        T: Into<std::ffi::OsString> + Clone,
+    {
+        let mut command = cli_command();
+        let matches = command.try_get_matches_from_mut(args)?;
+        #[cfg(feature = "cli")]
+        {
+            use clap::{error::ErrorKind, parser::ValueSource};
+            let explicit = |id| matches.value_source(id) == Some(ValueSource::CommandLine);
+            if matches.subcommand_name().is_some() {
+                if ["config_file", "check_config", "gen_autocomplete"]
+                    .into_iter()
+                    .any(explicit)
+                {
+                    return Err(command.error(
+                        ErrorKind::ArgumentConflict,
+                        "startup options cannot be used with management subcommands",
+                    ));
+                }
+            } else if ["verbose", "output_format", "no_trunc", "id", "name"]
+                .into_iter()
+                .any(explicit)
+            {
+                return Err(command.error(
+                    ErrorKind::MissingSubcommand,
+                    "management options require a subcommand (for example, peer or node)",
+                ));
+            }
+        }
+        Self::from_arg_matches(&matches)
+    }
+
     fn config_path(&self) -> anyhow::Result<PathBuf> {
         match &self.config_file {
             Some(path) if path.as_os_str() == "-" => {
@@ -102,7 +144,18 @@ fn cli_command() -> clap::Command {
 }
 
 fn parse_cli() -> Cli {
-    Cli::parse()
+    Cli::try_parse_from(std::env::args_os()).unwrap_or_else(|error| error.exit())
+}
+
+#[cfg(all(test, feature = "cli"))]
+pub(crate) fn parse_management_command(
+    args: &[&str],
+) -> (crate::cli::ManagementOptions, crate::cli::ManagementCommand) {
+    let cli = Cli::try_parse_from(args).expect("failed to parse core management command");
+    (
+        cli.management_options,
+        cli.command.expect("missing subcommand"),
+    )
 }
 
 #[cfg(target_os = "windows")]
@@ -333,6 +386,18 @@ pub async fn main() -> ExitCode {
     setup_panic_handler();
     crate::utils::init_crypto_provider();
 
+    let cli = parse_cli();
+    #[cfg(feature = "cli")]
+    if let Some(command) = cli.command {
+        return match crate::cli::run(cli.management_options, command, cli_command()).await {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(error) => {
+                eprintln!("{error:#}");
+                ExitCode::FAILURE
+            }
+        };
+    }
+
     #[cfg(target_os = "windows")]
     match windows_service::service_dispatcher::start(String::new(), ffi_service_main) {
         Ok(_) => std::thread::park(),
@@ -364,8 +429,6 @@ pub async fn main() -> ExitCode {
         });
     }
     let _monitor = std::thread::spawn(move || memory_monitor(force_dump));
-
-    let cli = parse_cli();
 
     if let Some(shell) = cli.gen_autocomplete {
         let mut cmd = cli_command();
@@ -434,6 +497,40 @@ mod tests {
                 .config_path()
                 .is_err()
         );
+    }
+
+    #[cfg(feature = "cli")]
+    #[test]
+    fn management_commands_share_the_core_entrypoint() {
+        cli_command().debug_assert();
+        for args in [
+            vec!["core", "peer"],
+            vec!["core", "route", "dump"],
+            vec!["core", "-o", "json", "-n", "test", "node"],
+            vec!["core", "connector", "-p", "tcp://127.0.0.1:11010", "list"],
+            vec![
+                "core",
+                "service",
+                "install",
+                "--core-args",
+                "-c",
+                "custom.toml",
+            ],
+            vec!["core", "gen-autocomplete", "bash"],
+        ] {
+            let cli = Cli::try_parse_from(args).unwrap();
+            assert!(cli.command.is_some());
+        }
+        for args in [
+            vec!["core", "-c", "custom.toml", "peer"],
+            vec!["core", "--check-config", "node"],
+            vec!["core", "--gen-autocomplete", "bash", "peer"],
+            vec!["core", "-p", "127.0.0.1:15888", "peer"],
+            vec!["core", "--rpc-portal", "192.0.2.1:15888", "peer"],
+            vec!["core", "-o", "json"],
+        ] {
+            assert!(Cli::try_parse_from(args).is_err());
+        }
     }
 
     #[test]

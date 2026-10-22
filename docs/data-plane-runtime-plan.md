@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted.
+Archived. The native data-plane design remains relevant, but this checkout no longer includes the contrib FFI or Go SDK referenced below.
 
 This document is the implementation plan for restructuring the EasyTier data
 plane and exposing it through native FFI and the `easytier-go` module. It

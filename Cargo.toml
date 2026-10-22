@@ -4,13 +4,6 @@ members = [
     "easytier-core",
     "easytier-proto",
     "easytier",
-    "easytier-contrib/easytier-mini",
-    "easytier-contrib/easytier-ffi",
-    "easytier-contrib/easytier-uptime",
-    "easytier-contrib/easytier-android-jni",
-    "easytier-contrib/easytier-ios",
-    "easytier-contrib/easytier-ohrs", # it needs ohrs sdk
-    "easytier-contrib/easytier-ohrs/crates/*",
 ]
 default-members = ["easytier"]
 exclude = []
@@ -27,7 +20,6 @@ arc-swap = "1.9"
 async-trait = "0.1.92"
 atomic-shim = "0.2.0"
 auto_impl = "1.3.0"
-axum = "0.8"
 # Match pbjson 0.9's base64 dependency; upgrade together to avoid two codecs.
 base64 = "0.22.1"
 bon = "3.10.1"
@@ -39,11 +31,7 @@ clap = "4.6.7"
 crossbeam = "0.8.5"
 crossbeam-utils = "0.8.23"
 dashmap = "6.2.1"
-easytier = { version = "2.7.0", path = "easytier", default-features = false }
 easytier-core = { version = "2.7.0", path = "easytier-core", default-features = false }
-easytier-ffi = { version = "0.1.0", path = "easytier-contrib/easytier-ffi", default-features = false }
-easytier-ohos-core = { version = "0.1.0", path = "easytier-contrib/easytier-ohrs/crates/easytier-ohos-core", default-features = false }
-easytier-ohos-features = { version = "0.1.0", path = "easytier-contrib/easytier-ohrs/crates/easytier-ohos-features", default-features = false }
 easytier-proto = { version = "2.7.0", path = "easytier-proto", default-features = false }
 futures = { version = "0.3", default-features = false }
 gethostname = "1.1"
@@ -69,15 +57,11 @@ rand = "0.8.8"
 reqwest = { version = "0.13.5", default-features = false }
 rust-i18n = "4"
 rustls = { version = "0.23.45", default-features = false }
-# tower-sessions-sqlx-store 0.15 requires SQLx 0.8; SeaORM 2 requires SQLx 0.9.
-sea-orm = "1.1.20"
-sea-orm-migration = "1.1.20"
 serde = "1.0.229"
 serde_json = "1.0"
 # See the HMAC constraint above; SHA2 must use the same digest generation.
 sha2 = "0.10.9"
 smoltcp = { version = "0.14.0", default-features = false }
-sqlx = "0.8.6"
 strum = "0.28.0"
 stun_codec = "0.4.0"
 sys-locale = "0.3"
@@ -88,7 +72,6 @@ tokio = { version = "1.53", default-features = false }
 tokio-rustls = { version = "0.26", default-features = false }
 tokio-util = "0.7.19"
 toml = "1.1.6"
-tower-http = "0.7"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", default-features = false }
 url = "2.5"

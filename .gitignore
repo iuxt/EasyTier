@@ -36,11 +36,7 @@ node_modules
 
 .vite
 
-/easytier-contrib/easytier-ohrs/dist/
-
 .direnv
 .flake-profile
 
-# contrib
-go.sum
 .test-env/

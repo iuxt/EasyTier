@@ -272,13 +272,13 @@ CredentialChanged,  // 触发 OSPF 立即同步
 
 实现 `CredentialManageRpc`，参考 `PeerManagerRpcService` 模式。
 
-**CLI** (`easytier-cli`):
+**CLI** (`easytier-core`):
 ```
-easytier-cli credential generate
+easytier-core credential generate
   输出: credential_id=<公钥base64>  credential_secret=<私钥base64>
 
-easytier-cli credential revoke <credential_id>
-easytier-cli credential list
+easytier-core credential revoke <credential_id>
+easytier-core credential list
 ```
 
 **临时节点启动**:
@@ -358,13 +358,13 @@ if !secret_proof_verified {
    ```bash
    # A: 管理节点
    easytier-core -n test -s secret --secure-mode --listeners tcp://0.0.0.0:11010
-   easytier-cli credential generate  # → credential_id + credential_secret
+   easytier-core credential generate  # → credential_id + credential_secret
 
    # C: 临时节点
    easytier-core -n test --secure-mode --credential <私钥base64> --peers tcp://A:11010
 
    # 验证后撤销
-   easytier-cli credential revoke <credential_id>
+   easytier-core credential revoke <credential_id>
    # C 数秒内被踢出
    ```
 
@@ -642,13 +642,13 @@ message GenerateCredentialRequest {
 CLI:
 ```bash
 # 生成带 group 的凭据，有效期 24 小时
-easytier-cli credential generate --groups guest,restricted --ttl 86400
+easytier-core credential generate --groups guest,restricted --ttl 86400
 
 # 生成允许 relay 的凭据，有效期 7 天
-easytier-cli credential generate --groups relay-node --allow-relay --ttl 604800
+easytier-core credential generate --groups relay-node --allow-relay --ttl 604800
 
 # 最简用法（默认 group 名为 "credential"）
-easytier-cli credential generate --ttl 3600
+easytier-core credential generate --ttl 3600
 ```
 
 ## 安全审查

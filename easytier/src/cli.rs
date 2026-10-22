@@ -13,13 +13,13 @@ use std::{
     vec,
 };
 
+use crate::ShellType;
 use anyhow::Context;
 use base64::Engine as _;
 use base64::prelude::BASE64_STANDARD;
 use cidr::Ipv4Inet;
-use clap::{ArgAction, Args, CommandFactory, Parser, Subcommand, builder::BoolishValueParser};
+use clap::{ArgAction, Args, Subcommand, builder::BoolishValueParser};
 use dashmap::DashMap;
-use easytier::ShellType;
 use easytier_core::connectivity::stun::StunInfoProvider as _;
 use humansize::format_size;
 use rust_i18n::t;
@@ -29,11 +29,11 @@ use tabled::settings::{Modify, Remove, Style, Width, location::ByColumnName, obj
 use terminal_size::{Width as TerminalWidth, terminal_size};
 use unicode_width::UnicodeWidthStr;
 
-use easytier::service_manager::{Service, ServiceInstallOptions};
+use crate::service_manager::{Service, ServiceInstallOptions};
 use tokio::time::timeout;
 
-use easytier::{
-    common::{constants::EASYTIER_VERSION, stun::runtime_stun_info_collector},
+use crate::{
+    common::stun::runtime_stun_info_collector,
     proto::{
         acl::{Acl, AclStats},
         api::{
@@ -87,17 +87,8 @@ use easytier::{
 
 rust_i18n::i18n!("locales", fallback = "en");
 
-#[derive(Parser, Debug)]
-#[command(name = "easytier-cli", author, version = EASYTIER_VERSION, about, long_about = None)]
-struct Cli {
-    #[arg(
-        short = 'p',
-        long,
-        default_value = "127.0.0.1:15888",
-        help = "easytier-core rpc portal address"
-    )]
-    rpc_portal: SocketAddr,
-
+#[derive(Args, Debug)]
+pub(crate) struct ManagementOptions {
     #[arg(short, long, default_value = "false", help = "verbose output")]
     verbose: bool,
 
@@ -119,13 +110,10 @@ struct Cli {
 
     #[command(flatten)]
     instance_select: InstanceSelectArgs,
-
-    #[command(subcommand)]
-    sub_command: SubCommand,
 }
 
 #[derive(Subcommand, Debug)]
-enum SubCommand {
+pub(crate) enum ManagementCommand {
     #[command(about = "show peers info")]
     Peer(PeerArgs),
     #[command(about = "manage connectors")]
@@ -168,7 +156,7 @@ enum OutputFormat {
     Json,
 }
 
-#[derive(Parser, Debug)]
+#[derive(Args, Debug)]
 struct InstanceSelectArgs {
     #[arg(short = 'i', long = "instance-id", help = "the instance id")]
     id: Option<uuid::Uuid>,
@@ -191,7 +179,7 @@ impl From<&InstanceSelectArgs> for InstanceIdentifier {
 }
 
 #[derive(Args, Debug)]
-struct PeerArgs {
+pub(crate) struct PeerArgs {
     #[command(subcommand)]
     sub_command: Option<PeerSubCommand>,
 }
@@ -216,7 +204,7 @@ enum PeerSubCommand {
 }
 
 #[derive(Args, Debug)]
-struct RouteArgs {
+pub(crate) struct RouteArgs {
     #[command(subcommand)]
     sub_command: Option<RouteSubCommand>,
 }
@@ -230,7 +218,7 @@ enum RouteSubCommand {
 }
 
 #[derive(Args, Debug)]
-struct ConnectorArgs {
+pub(crate) struct ConnectorArgs {
     #[arg(short, long, help = "filter connectors by virtual IPv4 address")]
     ipv4: Option<String>,
 
@@ -258,7 +246,7 @@ enum ConnectorSubCommand {
 }
 
 #[derive(Args, Debug)]
-struct MappedListenerArgs {
+pub(crate) struct MappedListenerArgs {
     #[command(subcommand)]
     sub_command: Option<MappedListenerSubCommand>,
 }
@@ -274,7 +262,7 @@ enum MappedListenerSubCommand {
 }
 
 #[derive(Args, Debug)]
-struct VpnPortalArgs {
+pub(crate) struct VpnPortalArgs {
     #[command(subcommand)]
     sub_command: Option<VpnPortalSubCommand>,
 }
@@ -308,13 +296,13 @@ enum NodeSubCommand {
 }
 
 #[derive(Args, Debug)]
-struct NodeArgs {
+pub(crate) struct NodeArgs {
     #[command(subcommand)]
     sub_command: Option<NodeSubCommand>,
 }
 
 #[derive(Args, Debug)]
-struct AclArgs {
+pub(crate) struct AclArgs {
     #[command(subcommand)]
     sub_command: Option<AclSubCommand>,
 }
@@ -354,7 +342,7 @@ enum AclSubCommand {
 }
 
 #[derive(Args, Debug)]
-struct PortForwardArgs {
+pub(crate) struct PortForwardArgs {
     #[command(subcommand)]
     sub_command: Option<PortForwardSubCommand>,
 }
@@ -384,7 +372,7 @@ enum PortForwardSubCommand {
 }
 
 #[derive(Args, Debug)]
-struct WhitelistArgs {
+pub(crate) struct WhitelistArgs {
     #[command(subcommand)]
     sub_command: Option<WhitelistSubCommand>,
 }
@@ -410,7 +398,7 @@ enum WhitelistSubCommand {
 }
 
 #[derive(Args, Debug)]
-struct StatsArgs {
+pub(crate) struct StatsArgs {
     #[command(subcommand)]
     sub_command: Option<StatsSubCommand>,
 }
@@ -424,7 +412,7 @@ enum StatsSubCommand {
 }
 
 #[derive(Args, Debug)]
-struct LoggerArgs {
+pub(crate) struct LoggerArgs {
     #[command(subcommand)]
     sub_command: Option<LoggerSubCommand>,
 }
@@ -441,7 +429,7 @@ enum LoggerSubCommand {
 }
 
 #[derive(Args, Debug)]
-struct CredentialArgs {
+pub(crate) struct CredentialArgs {
     #[command(subcommand)]
     sub_command: CredentialSubCommand,
 }
@@ -495,7 +483,7 @@ enum CredentialSubCommand {
 }
 
 #[derive(Args, Debug)]
-struct ServiceArgs {
+pub(crate) struct ServiceArgs {
     #[arg(short, long, default_value = env!("CARGO_PKG_NAME"), help = "service name")]
     name: String,
 
@@ -743,7 +731,7 @@ fn format_credential_peers(data: &CredentialPeersData) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use easytier::proto::api::instance::PeerConnInfo;
+    use crate::{core::parse_management_command, proto::api::instance::PeerConnInfo};
 
     const CREDENTIAL_FINGERPRINT: &str =
         "4bb06f8e4e3a7715d201d573d0aa423762e55dabd61a2c02278fa56cc6d294e0";
@@ -782,28 +770,27 @@ mod tests {
 
     #[test]
     fn credential_peers_command_parses_without_changing_list() {
-        let cli = Cli::try_parse_from([
-            "easytier-cli",
+        let (options, command) = parse_management_command(&[
+            "easytier-core",
             "-n",
             "network",
             "-o",
             "json",
             "credential",
             "peers",
-        ])
-        .unwrap();
-        assert_eq!(cli.instance_select.name.as_deref(), Some("network"));
-        assert_eq!(cli.output_format, OutputFormat::Json);
+        ]);
+        assert_eq!(options.instance_select.name.as_deref(), Some("network"));
+        assert_eq!(options.output_format, OutputFormat::Json);
         assert!(matches!(
-            cli.sub_command,
-            SubCommand::Credential(CredentialArgs {
+            command,
+            ManagementCommand::Credential(CredentialArgs {
                 sub_command: CredentialSubCommand::Peers,
             })
         ));
-        let cli = Cli::try_parse_from(["easytier-cli", "credential", "list"]).unwrap();
+        let (_, command) = parse_management_command(&["easytier-core", "credential", "list"]);
         assert!(matches!(
-            cli.sub_command,
-            SubCommand::Credential(CredentialArgs {
+            command,
+            ManagementCommand::Credential(CredentialArgs {
                 sub_command: CredentialSubCommand::List,
             })
         ));
@@ -1055,8 +1042,8 @@ mod tests {
     }
 
     fn parse_install_core_args(argv: &[&str]) -> Vec<OsString> {
-        let cli = Cli::try_parse_from(argv).expect("failed to parse cli");
-        let SubCommand::Service(service_args) = cli.sub_command else {
+        let (_, command) = parse_management_command(argv);
+        let ManagementCommand::Service(service_args) = command else {
             panic!("not a service subcommand");
         };
         let ServiceSubCommand::Install(install_args) = service_args.sub_command else {
@@ -1070,7 +1057,7 @@ mod tests {
         // trailing_var_arg used to collect the "--core-args" token itself into
         // the value, breaking the installed service's command line.
         let args = parse_install_core_args(&[
-            "easytier-cli",
+            "easytier-core",
             "service",
             "install",
             "--core-args",
@@ -1084,7 +1071,7 @@ mod tests {
     #[test]
     fn install_core_args_support_equals_form() {
         let args = parse_install_core_args(&[
-            "easytier-cli",
+            "easytier-core",
             "service",
             "install",
             "--core-args=--daemon",
@@ -1094,17 +1081,16 @@ mod tests {
 
     #[test]
     fn install_options_before_core_args_still_parse() {
-        let cli = Cli::try_parse_from([
-            "easytier-cli",
+        let (_, command) = parse_management_command(&[
+            "easytier-core",
             "service",
             "install",
             "--disable-autostart",
             "true",
             "--core-args",
             "--daemon",
-        ])
-        .expect("failed to parse cli");
-        let SubCommand::Service(service_args) = cli.sub_command else {
+        ]);
+        let ManagementCommand::Service(service_args) = command else {
             panic!("not a service subcommand");
         };
         let ServiceSubCommand::Install(install_args) = service_args.sub_command else {
@@ -1894,7 +1880,7 @@ impl<'a> CommandHandler<'a> {
                     cidr: route.ipv4_addr.map(|ip| ip.to_string()).unwrap_or_default(),
                     ipv4: route
                         .ipv4_addr
-                        .map(|ip: easytier::proto::common::Ipv4Inet| ip.address.unwrap_or_default())
+                        .map(|ip: crate::proto::common::Ipv4Inet| ip.address.unwrap_or_default())
                         .map(|ip| ip.to_string())
                         .unwrap_or_default(),
                     hostname: route.hostname.clone(),
@@ -2046,7 +2032,7 @@ impl<'a> CommandHandler<'a> {
             local_provider: Option<ProviderLeaseSection>,
         }
 
-        fn fmt_ipv6_inet(value: Option<easytier::proto::common::Ipv6Inet>) -> String {
+        fn fmt_ipv6_inet(value: Option<crate::proto::common::Ipv6Inet>) -> String {
             value
                 .map(|value| value.to_string())
                 .unwrap_or_else(|| "-".to_string())
@@ -3702,18 +3688,12 @@ fn optional_column_targets(
         .collect()
 }
 
-#[tokio::main]
-#[tracing::instrument]
-async fn main() -> Result<(), Error> {
-    let locale = sys_locale::get_locale().unwrap_or_else(|| String::from("en-US"));
-    rust_i18n::set_locale(&locale);
-    let cli = Cli::parse();
-
-    let client = runtime_rpc_client(
-        format!("tcp://{}:{}", cli.rpc_portal.ip(), cli.rpc_portal.port())
-            .parse()
-            .unwrap(),
-    );
+pub(crate) async fn run(
+    cli: ManagementOptions,
+    command: ManagementCommand,
+    mut completion_command: clap::Command,
+) -> Result<(), Error> {
+    let client = runtime_rpc_client("tcp://127.0.0.1:15888".parse().unwrap());
     let handler = CommandHandler {
         client: Arc::new(tokio::sync::Mutex::new(client)),
         verbose: cli.verbose,
@@ -3724,8 +3704,8 @@ async fn main() -> Result<(), Error> {
         resolved_target: None,
     };
 
-    match cli.sub_command {
-        SubCommand::Peer(peer_args) => match &peer_args.sub_command {
+    match command {
+        ManagementCommand::Peer(peer_args) => match &peer_args.sub_command {
             Some(PeerSubCommand::List) => {
                 handler.handle_peer_list().await?;
             }
@@ -3742,7 +3722,7 @@ async fn main() -> Result<(), Error> {
                 handler.handle_peer_list().await?;
             }
         },
-        SubCommand::Connector(conn_args) => match conn_args.sub_command {
+        ManagementCommand::Connector(conn_args) => match conn_args.sub_command {
             Some(ConnectorSubCommand::Add { url }) => {
                 handler
                     .handle_connector_modify(&url, ConfigPatchAction::Add)
@@ -3762,7 +3742,7 @@ async fn main() -> Result<(), Error> {
                 handler.handle_connector_list().await?;
             }
         },
-        SubCommand::MappedListener(mapped_listener_args) => {
+        ManagementCommand::MappedListener(mapped_listener_args) => {
             match mapped_listener_args.sub_command {
                 Some(MappedListenerSubCommand::Add { url }) => {
                     handler
@@ -3781,11 +3761,11 @@ async fn main() -> Result<(), Error> {
                 }
             }
         }
-        SubCommand::Route(route_args) => match route_args.sub_command {
+        ManagementCommand::Route(route_args) => match route_args.sub_command {
             Some(RouteSubCommand::List) | None => handler.handle_route_list().await?,
             Some(RouteSubCommand::Dump) => handler.handle_route_dump().await?,
         },
-        SubCommand::Stun => {
+        ManagementCommand::Stun => {
             timeout(Duration::from_secs(25), async move {
                 let collector = runtime_stun_info_collector(Default::default());
                 loop {
@@ -3809,10 +3789,10 @@ async fn main() -> Result<(), Error> {
             .await
             .unwrap();
         }
-        SubCommand::PeerCenter => {
+        ManagementCommand::PeerCenter => {
             handler.handle_peer_center().await?;
         }
-        SubCommand::VpnPortal(args) => match args.sub_command {
+        ManagementCommand::VpnPortal(args) => match args.sub_command {
             None => handler.handle_vpn_portal().await?,
             Some(VpnPortalSubCommand::AddClient {
                 name,
@@ -3830,10 +3810,10 @@ async fn main() -> Result<(), Error> {
                 handler.handle_vpn_portal_clear_clients().await?;
             }
         },
-        SubCommand::Node(sub_cmd) => {
+        ManagementCommand::Node(sub_cmd) => {
             handler.handle_node(sub_cmd.sub_command.as_ref()).await?;
         }
-        SubCommand::Service(service_args) => {
+        ManagementCommand::Service(service_args) => {
             let service = Service::new(service_args.name)?;
             match service_args.sub_command {
                 ServiceSubCommand::Install(install_args) => {
@@ -3908,7 +3888,7 @@ async fn main() -> Result<(), Error> {
                 }
             }
         }
-        SubCommand::Proxy => {
+        ManagementCommand::Proxy => {
             let mut entries = vec![];
 
             for client_type in &["tcp", "kcp_src", "kcp_dst", "quic_src", "quic_dst"] {
@@ -3961,7 +3941,7 @@ async fn main() -> Result<(), Error> {
                 cli.no_trunc,
             )?;
         }
-        SubCommand::Acl(acl_args) => match &acl_args.sub_command {
+        ManagementCommand::Acl(acl_args) => match &acl_args.sub_command {
             Some(AclSubCommand::Stats) | None => {
                 handler.handle_acl_stats().await?;
             }
@@ -3969,7 +3949,7 @@ async fn main() -> Result<(), Error> {
                 handler.handle_acl_set(&args.acl).await?;
             }
         },
-        SubCommand::PortForward(port_forward_args) => match &port_forward_args.sub_command {
+        ManagementCommand::PortForward(port_forward_args) => match &port_forward_args.sub_command {
             Some(PortForwardSubCommand::Add {
                 protocol,
                 bind_addr,
@@ -4002,7 +3982,7 @@ async fn main() -> Result<(), Error> {
                 handler.handle_port_forward_list().await?;
             }
         },
-        SubCommand::Whitelist(whitelist_args) => match &whitelist_args.sub_command {
+        ManagementCommand::Whitelist(whitelist_args) => match &whitelist_args.sub_command {
             Some(WhitelistSubCommand::SetTcp { ports }) => {
                 handler.handle_whitelist_set_tcp(ports).await?;
             }
@@ -4019,7 +3999,7 @@ async fn main() -> Result<(), Error> {
                 handler.handle_whitelist_show().await?;
             }
         },
-        SubCommand::Stats(stats_args) => match &stats_args.sub_command {
+        ManagementCommand::Stats(stats_args) => match &stats_args.sub_command {
             Some(StatsSubCommand::Show) | None => {
                 handler.handle_stats_show().await?;
             }
@@ -4027,7 +4007,7 @@ async fn main() -> Result<(), Error> {
                 handler.handle_stats_prometheus().await?;
             }
         },
-        SubCommand::Logger(logger_args) => match &logger_args.sub_command {
+        ManagementCommand::Logger(logger_args) => match &logger_args.sub_command {
             Some(LoggerSubCommand::Get) | None => {
                 handler.handle_logger_get().await?;
             }
@@ -4035,7 +4015,7 @@ async fn main() -> Result<(), Error> {
                 handler.handle_logger_set(level).await?;
             }
         },
-        SubCommand::Credential(credential_args) => match &credential_args.sub_command {
+        ManagementCommand::Credential(credential_args) => match &credential_args.sub_command {
             CredentialSubCommand::Generate {
                 ttl,
                 credential_id,
@@ -4065,13 +4045,12 @@ async fn main() -> Result<(), Error> {
                 handler.handle_credential_peers().await?;
             }
         },
-        SubCommand::GenAutocomplete { shell } => {
-            let mut cmd = Cli::command();
+        ManagementCommand::GenAutocomplete { shell } => {
+            let bin_name = completion_command.get_name().to_owned();
             if let Some(shell) = shell.to_shell() {
-                easytier::print_completions(shell, &mut cmd, "easytier-cli");
+                crate::print_completions(shell, &mut completion_command, &bin_name);
             } else {
-                // Handle Nushell
-                easytier::print_nushell_completions(&mut cmd, "easytier-cli");
+                crate::print_nushell_completions(&mut completion_command, &bin_name);
             }
         }
     }

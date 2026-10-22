@@ -89,8 +89,7 @@ validation.
 
 Descriptor sets are still generated and embedded by `easytier-proto`; removing
 runtime reflection did not remove descriptor data used by configuration and
-RPC tooling. The OHOS integration has its own schema service and dependency
-policy and is outside this replacement.
+RPC tooling. Platform integrations and Go/JavaScript SDKs are not included in this checkout.
 
 ### `easytier-core`
 
@@ -637,8 +636,8 @@ WASI ABI or Adapter changes require a `wasm32-wasip1` build and target-side
 tests. These compiler-resolved profiles are the authority for feature and
 target boundaries.
 
-CI path filters include `easytier-core`, `easytier-proto`, native
-Tauri, and contrib. The archived Rust test suite contains both `easytier` and
+CI path filters include `easytier-core`, `easytier-proto`, and native
+`easytier`. The archived Rust test suite contains both `easytier` and
 `easytier-core`.
 
 ## Known limitations and debt

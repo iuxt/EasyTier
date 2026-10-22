@@ -221,8 +221,10 @@ INSTALL() {
   mkdir $INSTALL_PATH/config
   mv $INSTALL_PATH/easytier-linux-${ARCH}/* $INSTALL_PATH/
   rm -rf $INSTALL_PATH/easytier-linux-${ARCH}/
-  chmod +x $INSTALL_PATH/easytier-core $INSTALL_PATH/easytier-cli
-  if [ -f $INSTALL_PATH/easytier-core ] || [ -f $INSTALL_PATH/easytier-cli ]; then
+  # Remove the retired standalone management binary from older archives/installations.
+  rm -f "$INSTALL_PATH/easytier-cli" /usr/bin/easytier-cli /usr/sbin/easytier-cli
+  chmod +x $INSTALL_PATH/easytier-core
+  if [ -f $INSTALL_PATH/easytier-core ]; then
     echo -e "${GREEN_COLOR} Download successfully! ${RES}"
   else
     echo -e "${RED_COLOR} Download failed! ${RES}"
@@ -340,11 +342,9 @@ EOF
   # For issues from the previous version
   rm -rf /etc/systemd/system/easytier.service
   rm -rf /usr/bin/easytier-core
-  rm -rf /usr/bin/easytier-cli
 
   # Add link
   ln -s $INSTALL_PATH/easytier-core /usr/sbin/easytier-core
-  ln -s $INSTALL_PATH/easytier-cli /usr/sbin/easytier-cli
 }
 
 SUCCESS() {
@@ -472,7 +472,9 @@ UPDATE() {
   
   # Move new files into the installation directory
   mv "$TEMP_UPDATE_DIR/easytier-linux-${ARCH}"/* "$INSTALL_PATH/"
-  chmod +x "$INSTALL_PATH/easytier-core" "$INSTALL_PATH/easytier-cli"
+  # Do not keep a standalone management binary or its links after an upgrade.
+  rm -f "$INSTALL_PATH/easytier-cli" /usr/bin/easytier-cli /usr/sbin/easytier-cli
+  chmod +x "$INSTALL_PATH/easytier-core"
 
   # Restore configuration to prevent user-defined settings from being overwritten
   if [ -d "$BACKUP_CONFIG_DIR/config" ]; then
