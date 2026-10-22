@@ -115,7 +115,7 @@ impl Cli {
                         "startup options cannot be used with management subcommands",
                     ));
                 }
-            } else if ["verbose", "output_format", "no_trunc", "id", "name"]
+            } else if ["verbose", "output_format", "no_trunc", "id"]
                 .into_iter()
                 .any(explicit)
             {
@@ -506,7 +506,14 @@ mod tests {
         for args in [
             vec!["core", "peer"],
             vec!["core", "route", "dump"],
-            vec!["core", "-o", "json", "-n", "test", "node"],
+            vec![
+                "core",
+                "-o",
+                "json",
+                "--instance-id",
+                "018f4fb1-7a2c-7d1f-9d89-935b0ad7e135",
+                "node",
+            ],
             vec!["core", "connector", "-p", "tcp://127.0.0.1:11010", "list"],
             vec![
                 "core",

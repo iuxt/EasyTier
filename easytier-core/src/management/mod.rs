@@ -38,10 +38,7 @@ pub use full::{
 };
 pub use instance_rpc::InstanceManagementRpc;
 pub use rpc_server_hook::ManagementRpcServerHook;
-pub use selector::{
-    ManagementInstance, ManagementSelector, resolve_instance, resolve_management_instance,
-    resolve_optional_instance_by_name,
-};
+pub use selector::{ManagementSelector, resolve_instance, resolve_management_instance};
 #[cfg(feature = "management")]
 pub use server::ManagementServer;
 pub use server::ReadOnlyManagementServer;

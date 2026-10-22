@@ -164,7 +164,7 @@ where
     async fn stop_components(&self) {
         if !self.peer_manager.withdraw_routes_before_stop().await {
             tracing::warn!(
-                instance = %self.instance_name,
+                instance_id = %self.instance_id(),
                 "not every direct route session acknowledged the shutdown withdrawal"
             );
         }

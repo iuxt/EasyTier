@@ -171,10 +171,17 @@ test('release accepts full builds triggered by a release branch push', async () 
   await release(runs);
 });
 
-test('release rejects PR builds and regular branch pushes', async () => {
+test('release accepts full builds triggered by a main push', async () => {
+  const runs = releaseRuns();
+  runs[0].event = 'push';
+  await release(runs);
+});
+
+test('release rejects PR builds and development branch pushes', async () => {
   for (const event of ['pull_request', 'push']) {
     const runs = releaseRuns();
     runs[0].event = event;
+    runs[0].head_branch = 'develop';
     await assert.rejects(release(runs), /successful full build/);
   }
 });

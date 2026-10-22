@@ -3071,7 +3071,6 @@ dependencies = [
 [[package]]
 name = "kcp-sys"
 version = "0.1.0"
-source = "git+https://github.com/EasyTier/kcp-sys?rev=268533568d734ae89dc89603078da3ca522effe1#268533568d734ae89dc89603078da3ca522effe1"
 dependencies = [
  "anyhow",
  "auto_impl",
@@ -4959,7 +4958,6 @@ dependencies = [
 [[package]]
 name = "service-manager"
 version = "0.8.0"
-source = "git+https://github.com/EasyTier/service-manager-rs.git?branch=main#5eb28f7a686858eea4f4933534ed989d3b71dc2a"
 dependencies = [
  "cfg-if",
  "dirs",
@@ -5421,7 +5419,6 @@ dependencies = [
 [[package]]
 name = "thunk-rs"
 version = "0.3.5"
-source = "git+https://github.com/EasyTier/thunk.git#cbbeec75a66b7b3cf0824ae890d9d06bcfb9d1f3"
 
 [[package]]
 name = "tikv-jemalloc-ctl"
@@ -5591,7 +5588,6 @@ dependencies = [
 [[package]]
 name = "tokio-websockets"
 version = "0.13.2"
-source = "git+https://github.com/EasyTier/tokio-websockets#dc9771c7c215882349c3cb328877550a3593df21"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -5891,7 +5887,6 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 [[package]]
 name = "tun-easytier"
 version = "1.1.1"
-source = "git+https://github.com/EasyTier/rust-tun?rev=5ba6be073e5b486b68c12f80fac5cfb50601f024#5ba6be073e5b486b68c12f80fac5cfb50601f024"
 dependencies = [
  "bytes",
  "cfg-if",
@@ -6254,7 +6249,6 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 [[package]]
 name = "windivert"
 version = "0.6.0"
-source = "git+https://github.com/EasyTier/windivert-rust.git?rev=adcc56d1550f7b5377ec2b3429f413ee24a77375#adcc56d1550f7b5377ec2b3429f413ee24a77375"
 dependencies = [
  "etherparse",
  "thiserror 1.0.69",
@@ -6265,7 +6259,6 @@ dependencies = [
 [[package]]
 name = "windivert-sys"
 version = "0.10.0"
-source = "git+https://github.com/EasyTier/windivert-rust.git?rev=adcc56d1550f7b5377ec2b3429f413ee24a77375#adcc56d1550f7b5377ec2b3429f413ee24a77375"
 dependencies = [
  "cc",
  "thiserror 1.0.69",

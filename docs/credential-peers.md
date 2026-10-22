@@ -7,7 +7,7 @@ direct peers:
 easytier-core credential peers
 
 # Select one network instance and return machine-readable output.
-easytier-core --instance-name my-network --output json credential peers
+easytier-core --instance-id 018f4fb1-7a2c-7d1f-9d89-935b0ad7e135 --output json credential peers
 ```
 
 The table associates each credential ID with peer IDs, virtual IPv4/IPv6
@@ -37,7 +37,7 @@ JSON output has this shape for one instance:
 
 Without an explicit instance selector, the command follows the other CLI query
 commands: it queries running instances, wrapping multiple results with their
-instance IDs and names.
+instance IDs.
 
 ## Scope
 

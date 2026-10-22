@@ -31,7 +31,6 @@ COPY . .
 ENV CARGO_TARGET_DIR=/build/target
 # Keep the output outside the cache mount so later stages can copy it.
 RUN --mount=type=cache,id=easytier-registry-${TARGETARCH},target=/usr/local/cargo/registry,sharing=locked \
-    --mount=type=cache,id=easytier-git-${TARGETARCH},target=/usr/local/cargo/git,sharing=locked \
     --mount=type=cache,id=easytier-target-${RUST_VERSION}-${TARGETARCH},target=/build/target,sharing=locked \
     cargo build --locked --release --package easytier \
         --bin easytier-core \

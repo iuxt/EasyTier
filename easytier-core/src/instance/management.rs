@@ -25,10 +25,6 @@ where
         self.peer_manager.instance_id()
     }
 
-    pub fn instance_name(&self) -> &str {
-        &self.instance_name
-    }
-
     pub fn add_connector(&self, url: Url) -> anyhow::Result<()> {
         self.manual
             .as_ref()

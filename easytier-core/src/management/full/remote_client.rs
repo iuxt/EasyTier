@@ -367,9 +367,8 @@ where
                 instance_id,
                 NetworkMeta {
                     inst_id: Some(instance_id.into()),
-                    network_name: network_name.clone(),
+                    network_name,
                     config_permission: 0,
-                    instance_name: network_name,
                     source: config_source_to_rpc(source),
                 },
             );

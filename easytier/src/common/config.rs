@@ -98,11 +98,11 @@ mod tests {
     async fn file_values_are_literal_and_keep_file_permissions() {
         let file = tempfile::NamedTempFile::new().unwrap();
         // HOME is normally defined; it must still remain literal.
-        std::fs::write(file.path(), "instance_name = '$HOME/${HOME}'").unwrap();
+        std::fs::write(file.path(), "hostname = '$HOME/${HOME}'").unwrap();
         let (config, control) = load_config_from_file(&file.path().to_path_buf(), None)
             .await
             .unwrap();
-        assert_eq!(config.get_inst_name(), "$HOME/${HOME}");
+        assert_eq!(config.get_hostname(), "$HOME/${HOME}");
         assert_eq!(control.path.as_deref(), Some(file.path()));
         assert!(!control.is_read_only());
         assert!(control.is_no_delete());

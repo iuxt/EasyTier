@@ -170,7 +170,6 @@ fn core_instance_config_round_trips_as_normalized_json() {
         },
     );
     let config = CoreInstanceConfig {
-        instance_name: String::new(),
         peer,
         connectivity: CoreConnectivityConfig::default(),
         vpn_portal: None,
@@ -190,11 +189,6 @@ fn core_instance_config_round_trips_as_normalized_json() {
         CoreConnectivityMode::Full
     );
     assert_eq!(serde_json::to_value(&decoded).unwrap(), encoded);
-
-    let mut legacy = encoded;
-    legacy.as_object_mut().unwrap().remove("instance_name");
-    let decoded: CoreInstanceConfig = serde_json::from_value(legacy).unwrap();
-    assert_eq!(decoded.instance_name, "default");
 }
 
 #[test]
@@ -329,7 +323,6 @@ mod portable_runtime {
         });
         let connectivity = CoreConnectivityConfig::default();
         CoreInstanceConfig {
-            instance_name: network_name.to_owned(),
             peer,
             connectivity,
             vpn_portal: None,
@@ -683,7 +676,6 @@ mod portable_runtime {
     async fn core_instance_is_a_direct_managed_record() {
         let instance = build_instance(test_config("managed-directly")).unwrap();
 
-        assert_eq!(instance.instance_name(), "managed-directly");
         assert_eq!(
             instance.instance_id(),
             crate::instance::manager::ManagedInstance::instance_id(instance.as_ref())
@@ -726,10 +718,7 @@ mod portable_runtime {
         use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64_STANDARD};
         use easytier_proto::{
             api::config::{ConfigRpc, GetConfigRequest, InstanceConfigPatch, PatchConfigRequest},
-            api::instance::{
-                PeerManageRpc, ShowNodeInfoRequest,
-                instance_identifier::{InstanceSelector, Selector},
-            },
+            api::instance::{PeerManageRpc, ShowNodeInfoRequest, instance_identifier::Selector},
             api::manage::{ManagedCredentialConfig, ManagedCredentialSet},
             rpc_types::controller::BaseController,
         };
@@ -758,7 +747,6 @@ mod portable_runtime {
         let manager = Arc::new(InstanceManager::new(ManagementTestFactory, None));
         let config = TomlConfig::new_from_str(
             r#"
-instance_name = "managed-by-name"
 hostname = "core-owned-config"
 
 [network_identity]
@@ -776,9 +764,7 @@ network_secret = "network-secret"
                 BaseController::default(),
                 ShowNodeInfoRequest {
                     instance: Some(easytier_proto::api::instance::InstanceIdentifier {
-                        selector: Some(Selector::InstanceSelector(InstanceSelector {
-                            name: Some("managed-by-name".to_owned()),
-                        })),
+                        selector: Some(Selector::Id(instance.instance_id().into())),
                     }),
                 },
             )
@@ -787,12 +773,9 @@ network_secret = "network-secret"
 
         let node = response.node_info.unwrap();
         assert_eq!(node.hostname, "core-owned-config");
-        assert!(node.config.contains("instance_name = \"managed-by-name\""));
 
         let selector = || easytier_proto::api::instance::InstanceIdentifier {
-            selector: Some(Selector::InstanceSelector(InstanceSelector {
-                name: Some("managed-by-name".to_owned()),
-            })),
+            selector: Some(Selector::Id(instance.instance_id().into())),
         };
         rpc.patch_config(
             BaseController::default(),
@@ -1069,7 +1052,6 @@ source = "web"
         let (packet_sink, _packet_receiver) = tokio::sync::mpsc::channel(16);
         let config = TomlConfig::new_from_str(
             r#"
-instance_name = "durable-ordinary-patch"
 hostname = "before"
 
 [network_identity]
@@ -1132,7 +1114,7 @@ source = "web"
         let instance = CoreInstance::from_toml(
             TomlConfig::new_from_str(
                 r#"
-instance_name = "durable-portal-patch"
+hostname = "durable-portal-patch"
 ipv4 = "10.82.0.1/24"
 
 [network_identity]
@@ -1263,10 +1245,8 @@ source = "web"
 
         let (packet_sink, _packet_receiver) = tokio::sync::mpsc::channel(16);
         let instance = CoreInstance::from_toml(
-            crate::config::toml::TomlConfig::new_from_str(
-                "instance_name = \"rejected-gateway-patch\"",
-            )
-            .unwrap(),
+            crate::config::toml::TomlConfig::new_from_str("hostname = \"rejected-gateway-patch\"")
+                .unwrap(),
             adapters(None, Arc::new(packet_sink)),
         )
         .unwrap();
@@ -1333,7 +1313,7 @@ source = "web"
         let instance = CoreInstance::from_toml(
             crate::config::toml::TomlConfig::new_from_str(
                 r#"
-instance_name = "rejected-portal-address-patch"
+hostname = "rejected-portal-address-patch"
 ipv4 = "10.82.0.1/24"
 
 [network_identity]
@@ -1399,10 +1379,9 @@ virtual_ip = "10.82.0.2/24"
         };
 
         let (packet_sink, _packet_receiver) = tokio::sync::mpsc::channel(16);
-        let toml_config = crate::config::toml::TomlConfig::new_from_str(
-            "instance_name = \"ignored-gateway-patch\"",
-        )
-        .unwrap();
+        let toml_config =
+            crate::config::toml::TomlConfig::new_from_str("hostname = \"ignored-gateway-patch\"")
+                .unwrap();
         let mut host_adapters = adapters(None, Arc::new(packet_sink));
         host_adapters.config.ignore_unsupported_config = true;
         host_adapters.config.gateway_enabled = false;
@@ -1553,7 +1532,7 @@ virtual_ip = "10.82.0.2/24"
             manager: &InstanceManager<StateTestFactory>,
             name: &str,
         ) -> Arc<CoreInstance<TestHost>> {
-            let config = TomlConfig::new_from_str(&format!("instance_name = \"{name}\"")).unwrap();
+            let config = TomlConfig::new_from_str(&format!("hostname = \"{name}\"")).unwrap();
             manager.create(config, ()).unwrap()
         }
 
@@ -2297,15 +2276,30 @@ virtual_ip = "10.82.0.2/24"
         let config = TomlConfig::default();
         config.set_listeners(Vec::new());
         let instance_id = config.get_id();
-        instances
-            .run_network_instance(config, ConfigFileControl::STATIC_CONFIG)
-            .unwrap();
         let hooks = Arc::new(BlockingRemovalHook::default());
         let management = ProcessManagement::<ManagementTestFactory>::new(
             instances.clone(),
             hooks.clone(),
             Arc::new(UnsupportedConfigFileStorage),
         );
+
+        management
+            .run_owned_network_instance(config.clone(), ConfigFileControl::STATIC_CONFIG)
+            .await
+            .unwrap();
+        assert!(
+            management
+                .run_owned_network_instance(config, ConfigFileControl::STATIC_CONFIG)
+                .await
+                .is_err()
+        );
+        let second_config = TomlConfig::default();
+        second_config.set_listeners(Vec::new());
+        let second_id = management
+            .run_owned_network_instance(second_config, ConfigFileControl::STATIC_CONFIG)
+            .await
+            .unwrap();
+        assert_ne!(instance_id, second_id);
 
         let deletion_management = management.clone();
         let deletion = tokio::spawn(async move {
@@ -2324,54 +2318,9 @@ virtual_ip = "10.82.0.2/24"
         let result = deletion.await.unwrap().unwrap();
         assert_eq!(result.removed_instance_ids, vec![instance_id]);
         assert_eq!(hooks.removed.lock().unwrap().len(), 1);
-
-        let old_name = format!("old-{instance_id}");
-        let new_name = format!("new-{instance_id}");
-        let old_config = TomlConfig::default();
-        old_config.set_id(instance_id);
-        old_config.set_inst_name(old_name.clone());
-        old_config.set_listeners(Vec::new());
+        assert_eq!(result.remaining_instance_ids, vec![second_id]);
         instances
-            .run_network_instance(old_config, ConfigFileControl::STATIC_CONFIG)
-            .unwrap();
-
-        let mutation_guard = instances.mutation_lock().lock_owned().await;
-        let deletion = management.delete_owned_network_instances_by_name(vec![old_name]);
-        tokio::pin!(deletion);
-        assert!(matches!(
-            futures::poll!(deletion.as_mut()),
-            std::task::Poll::Pending
-        ));
-
-        instances
-            .delete_network_instances([instance_id])
-            .await
-            .unwrap();
-        let new_config = TomlConfig::default();
-        new_config.set_id(instance_id);
-        new_config.set_inst_name(new_name.clone());
-        new_config.set_listeners(Vec::new());
-        instances
-            .run_network_instance(new_config, ConfigFileControl::STATIC_CONFIG)
-            .unwrap();
-
-        drop(mutation_guard);
-        hooks.release.notify_one();
-        let result = deletion.await.unwrap();
-        assert!(result.removed_instance_ids.is_empty());
-        assert_eq!(
-            instances
-                .instance(instance_id)
-                .map(|instance| instance.instance_name().to_owned())
-                .as_deref(),
-            Some(new_name.as_str())
-        );
-        assert_eq!(
-            hooks.removed.lock().unwrap().as_slice(),
-            &[vec![instance_id], Vec::new()]
-        );
-        instances
-            .delete_network_instances([instance_id])
+            .delete_network_instances([second_id])
             .await
             .unwrap();
 
@@ -2502,7 +2451,7 @@ virtual_ip = "10.82.0.2/24"
             .insert(config_path.clone(), original_file.clone());
         let original = TomlConfig::default();
         original.set_id(instance_id);
-        original.set_inst_name("original-instance".to_owned());
+        original.set_hostname(Some("original-host".to_owned()));
         original.set_listeners(Vec::new());
         instances
             .run_network_instance(
@@ -2536,9 +2485,11 @@ virtual_ip = "10.82.0.2/24"
         assert_eq!(
             instances
                 .instance(instance_id)
-                .map(|instance| instance.instance_name().to_owned())
-                .as_deref(),
-            Some("original-instance")
+                .unwrap()
+                .node_snapshot()
+                .await
+                .hostname,
+            "original-host"
         );
         assert_eq!(
             storage.0.lock().unwrap().get(&config_path),
@@ -3009,8 +2960,7 @@ virtual_ip = "10.82.0.2/24"
                 tcp_listeners: Some(Arc::new(std::sync::Mutex::new(Default::default()))),
                 ..Default::default()
             });
-            let config =
-                TomlConfig::new_from_str("instance_name = \"port-forward-reload\"").unwrap();
+            let config = TomlConfig::new_from_str("hostname = \"port-forward-reload\"").unwrap();
             config.set_port_forwards(vec![forward(19491, 19381)]);
             let (packet_sink, _packet_receiver) = tokio::sync::mpsc::channel(16);
             let instance = CoreInstance::from_toml(

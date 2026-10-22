@@ -39,7 +39,7 @@ fn full_chinese_template_is_valid() {
 fn startup_ignores_environment_settings_and_expansion() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join("config.toml");
-    fs::write(&path, "instance_name = '$HOME/${HOME}'\n[console_logger]\nlevel = 'warn'\n[file_logger]\nlevel = 'info'").unwrap();
+    fs::write(&path, "hostname = '$HOME/${HOME}'\n[console_logger]\nlevel = 'warn'\n[file_logger]\nlevel = 'info'").unwrap();
     assert_success(
         check(&path)
             .env("ET_CONFIG_FILE", "/missing.toml")
@@ -95,7 +95,7 @@ fn default_config_is_resolved_from_executable_directory() {
     fs::copy(binary(), &executable).unwrap();
     fs::write(
         bin_dir.join("config.toml"),
-        "instance_name = 'next-to-executable'",
+        "hostname = 'next-to-executable'",
     )
     .unwrap();
     fs::write(work_dir.join("config.toml"), "invalid = [").unwrap();
@@ -118,7 +118,7 @@ fn default_config_is_resolved_from_executable_directory() {
             .status
             .success()
     );
-    fs::write(work_dir.join("custom.toml"), "instance_name = 'explicit'").unwrap();
+    fs::write(work_dir.join("custom.toml"), "hostname = 'explicit'").unwrap();
     assert_success(
         Command::new(executable)
             .env_clear()

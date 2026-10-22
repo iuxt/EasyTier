@@ -80,7 +80,6 @@ pub type EventBus = tokio::sync::broadcast::Sender<GlobalCtxEvent>;
 pub type EventBusSubscriber = tokio::sync::broadcast::Receiver<GlobalCtxEvent>;
 
 pub struct GlobalCtx {
-    pub inst_name: String,
     pub id: uuid::Uuid,
     pub config: Box<dyn ConfigLoader>,
     pub net_ns: NetNS,
@@ -101,7 +100,6 @@ pub struct GlobalCtx {
 impl std::fmt::Debug for GlobalCtx {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("GlobalCtx")
-            .field("inst_name", &self.inst_name)
             .field("id", &self.id)
             .field("net_ns", &self.net_ns.name())
             .field("event_bus", &"EventBus")
@@ -195,7 +193,6 @@ impl GlobalCtx {
 
         let (event_bus, _) = tokio::sync::broadcast::channel(16);
         GlobalCtx {
-            inst_name: config_fs.get_inst_name(),
             id,
             config: Box::new(config_fs),
             net_ns: net_ns.clone(),
@@ -515,7 +512,6 @@ pub mod tests {
         network_identy: Option<NetworkIdentity>,
     ) -> ArcGlobalCtx {
         let config_fs = TomlConfigLoader::default();
-        config_fs.set_inst_name(format!("test_{}", config_fs.get_id()));
         config_fs.set_network_identity(network_identy.unwrap_or_default());
 
         Arc::new(GlobalCtx::new(config_fs))

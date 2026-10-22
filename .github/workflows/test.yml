@@ -45,7 +45,7 @@ jobs:
         ["Cargo.toml", "Cargo.lock", "rust-toolchain.toml", ".cargo/**",
         ".config/nextest.toml",
         "config.toml", "easytier/**",
-        "easytier-core/**", "easytier-proto/**",
+        "easytier-core/**", "easytier-proto/**", "vendor/**",
         ".github/workflows/test.yml", ".github/actions/**"]
     outputs:
       full_build: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.ref_name, 'releases/') }}
@@ -109,7 +109,8 @@ jobs:
 
       - name: Check formatting
         if: ${{ !cancelled() }}
-        run: cargo fmt --all -- --check
+        # --all also formats local path dependencies; preserve upstream snapshots.
+        run: cargo fmt -p easytier -p easytier-core -p easytier-proto -- --check
 
       - name: Check Clippy
         if: ${{ !cancelled() }}

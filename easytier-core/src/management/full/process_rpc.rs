@@ -330,16 +330,6 @@ where
         self.retain_network_instances_locked(retained).await
     }
 
-    /// Resolves retained names and mutates the collection in one transaction.
-    pub async fn retain_owned_network_instances_by_name(
-        &self,
-        retained_names: Vec<String>,
-    ) -> anyhow::Result<InstanceMutationResult> {
-        let _mutation = self.mutation_lock.lock().await;
-        let retained = self.resolve_instance_ids_by_name(&retained_names)?;
-        self.retain_network_instances_locked(retained).await
-    }
-
     async fn retain_network_instances_locked(
         &self,
         retained: Vec<uuid::Uuid>,
@@ -443,12 +433,6 @@ where
         if self.instances.instance(instance_id).is_some() {
             anyhow::bail!("instance {instance_id} already exists");
         }
-        let instance_name = config.get_inst_name();
-        if super::resolve_optional_instance_by_name(self.instances.as_ref(), &instance_name)?
-            .is_some()
-        {
-            anyhow::bail!("instance name {instance_name} already exists");
-        }
         self.instances.run_network_instance(config, control)
     }
 
@@ -471,16 +455,6 @@ where
         self.delete_owned_network_instances_locked(requested).await
     }
 
-    /// Resolves requested names and removes them in one transaction.
-    pub async fn delete_owned_network_instances_by_name(
-        &self,
-        requested_names: Vec<String>,
-    ) -> anyhow::Result<InstanceMutationResult> {
-        let _mutation = self.mutation_lock.lock().await;
-        let requested = self.resolve_instance_ids_by_name(&requested_names)?;
-        self.delete_owned_network_instances_locked(requested).await
-    }
-
     async fn delete_owned_network_instances_locked(
         &self,
         requested: Vec<uuid::Uuid>,
@@ -497,17 +471,6 @@ where
             removed_instance_ids: removed,
             remaining_instance_ids: remaining,
         })
-    }
-
-    fn resolve_instance_ids_by_name(&self, names: &[String]) -> anyhow::Result<Vec<uuid::Uuid>> {
-        names
-            .iter()
-            .map(|name| {
-                super::resolve_optional_instance_by_name(self.instances.as_ref(), name)
-                    .map(|instance| instance.map(|instance| instance.instance_id()))
-            })
-            .filter_map(Result::transpose)
-            .collect()
     }
 
     async fn notify_removed_instances(&self, removed: &[uuid::Uuid]) -> anyhow::Result<()> {
@@ -751,7 +714,6 @@ where
                 inst_id: Some(instance_id.into()),
                 network_name: config.get_network_identity().network_name,
                 config_permission: control.permission.into(),
-                instance_name: instance.instance_name().to_owned(),
                 source: config_source_to_rpc(config.get_network_config_source()),
             });
         }

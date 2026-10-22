@@ -10,7 +10,7 @@ module.exports = async ({ github, context, core }) => {
       run_id: Number(runId),
     });
     const fullBuild = run.event === 'workflow_dispatch' ||
-      (run.event === 'push' && run.head_branch.startsWith('releases/'));
+      (run.event === 'push' && (run.head_branch === 'main' || run.head_branch.startsWith('releases/')));
     if (run.path !== `.github/workflows/${workflow}` || run.conclusion !== 'success' || !fullBuild) {
       throw new Error(`${workflow}: run ${runId} must be a successful full build.`);
     }

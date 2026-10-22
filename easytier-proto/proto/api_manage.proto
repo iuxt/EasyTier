@@ -185,7 +185,7 @@ message NetworkMeta {
   common.UUID inst_id = 1;
   string network_name = 2;
   uint32 config_permission = 3;
-  string instance_name = 4;
+  reserved 4;
   ConfigSource source = 5;
 }
 

@@ -30,7 +30,7 @@ use crate::{
     rpc::service_registry::ServiceRegistry,
 };
 
-use super::{ConfigFileControl, ConfigFilePermission, resolve_optional_instance_by_name};
+use super::{ConfigFileControl, ConfigFilePermission};
 
 #[cfg(feature = "management")]
 pub use compiled::register_instance_management_rpc;

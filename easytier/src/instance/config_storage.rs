@@ -90,13 +90,10 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("config.toml");
         let storage = NativeConfigFileStorage;
-        storage.write(&path, b"instance_name = 'old'\n[core]\ndaemon = true\n[file_logger]\nlevel = 'warn'\n[console_logger]\nlevel = 'info'\n").await.unwrap();
-        storage
-            .write(&path, b"instance_name = 'new'\n")
-            .await
-            .unwrap();
+        storage.write(&path, b"hostname = 'old'\n[core]\ndaemon = true\n[file_logger]\nlevel = 'warn'\n[console_logger]\nlevel = 'info'\n").await.unwrap();
+        storage.write(&path, b"hostname = 'new'\n").await.unwrap();
         let saved: toml::Table = toml::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
-        assert_eq!(saved["instance_name"].as_str(), Some("new"));
+        assert_eq!(saved["hostname"].as_str(), Some("new"));
         assert_eq!(saved["core"]["daemon"].as_bool(), Some(true));
         assert_eq!(saved["file_logger"]["level"].as_str(), Some("warn"));
         assert_eq!(saved["console_logger"]["level"].as_str(), Some("info"));

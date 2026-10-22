@@ -20,10 +20,6 @@ pub const DEFAULT_ET_DNS_ZONE: &str = "et.net.";
 
 pub use crate::proto::common::{Flags, FlagsPatch};
 
-pub(crate) fn default_instance_name() -> String {
-    "default".to_owned()
-}
-
 #[auto_impl::auto_impl(Box, &)]
 pub trait ConfigLoader: Send + Sync {
     fn get_id(&self) -> uuid::Uuid;
@@ -31,9 +27,6 @@ pub trait ConfigLoader: Send + Sync {
 
     fn get_hostname(&self) -> String;
     fn set_hostname(&self, name: Option<String>);
-
-    fn get_inst_name(&self) -> String;
-    fn set_inst_name(&self, name: String);
 
     fn get_netns(&self) -> Option<String>;
     fn set_netns(&self, ns: Option<String>);
@@ -409,7 +402,6 @@ impl std::fmt::Debug for ManagedCredentialConfig {
 struct Config {
     netns: Option<String>,
     hostname: Option<String>,
-    instance_name: Option<String>,
     instance_id: Option<uuid::Uuid>,
     ipv4: Option<String>,
     ipv6: Option<String>,
@@ -632,19 +624,6 @@ impl TomlConfig {
 mod snapshot;
 
 impl ConfigLoader for TomlConfig {
-    fn get_inst_name(&self) -> String {
-        self.config
-            .lock()
-            .unwrap()
-            .instance_name
-            .clone()
-            .unwrap_or_else(default_instance_name)
-    }
-
-    fn set_inst_name(&self, name: String) {
-        self.config.lock().unwrap().instance_name = Some(name);
-    }
-
     fn get_hostname(&self) -> String {
         let hostname = self.config.lock().unwrap().hostname.clone();
 
@@ -1208,7 +1187,6 @@ mod tests {
     fn toml_round_trip_preserves_config_and_non_default_flags() {
         let config = TomlConfig::new_from_str(
             r#"
-instance_name = "node-a"
 instance_id = "018f85a8-a9d0-7d4c-b73d-4ab62c048a20"
 hostname = "host-a"
 listeners = ["tcp://0.0.0.0:11010"]
@@ -1603,7 +1581,6 @@ socketMark = "0"
     #[test]
     fn test_stun_servers_toml_parsing() {
         let config_str = r#"
-instance_name = "test"
 stun_servers = [
     "stun.l.google.com:19302",
     "stun1.l.google.com:19302",
@@ -1628,7 +1605,6 @@ tcp_stun_servers = [
     fn test_empty_tcp_stun_servers_toml_parsing() {
         let config = TomlConfigLoader::new_from_str(
             r#"
-instance_name = "test"
 tcp_stun_servers = []
 "#,
         )
@@ -1920,7 +1896,6 @@ mod full_example_tests {
     #[test]
     fn full_example_test() {
         let config_str = r#"
-instance_name = "default"
 instance_id = "87ede5a2-9c3d-492d-9bbe-989b9d07e742"
 ipv4 = "10.144.144.10"
 listeners = [ "tcp://0.0.0.0:11010", "udp://0.0.0.0:11010" ]

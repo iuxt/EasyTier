@@ -99,8 +99,8 @@ run_cmd() {
 
 assert_text_output() {
   local text_output="$1"
-  grep -F '== e2e-inst-a (' <<<"$text_output" >/dev/null
-  grep -F '== e2e-inst-b (' <<<"$text_output" >/dev/null
+  grep -F '== 018f4fb1-7a2c-7d1f-9d89-935b0ad7e135 ==' <<<"$text_output" >/dev/null
+  grep -F '== 018f4fb1-7a2c-7d1f-9d89-935b0ad7e136 ==' <<<"$text_output" >/dev/null
 }
 
 assert_multi_instance_json() {
@@ -114,10 +114,11 @@ result_type = {"dict": dict, "list": list}[os.environ["JSON_RESULT_TYPE"]]
 assert isinstance(data, list), data
 assert len(data) == 2, data
 
-names = {item["instance_name"] for item in data}
-assert names == {"e2e-inst-a", "e2e-inst-b"}, names
+ids = {item["instance_id"] for item in data}
+assert ids == {"018f4fb1-7a2c-7d1f-9d89-935b0ad7e135", "018f4fb1-7a2c-7d1f-9d89-935b0ad7e136"}, ids
 
 for item in data:
+    assert set(item) == {"instance_id", "result"}, item
     assert item["instance_id"], item
     assert isinstance(item["result"], result_type), item
 PY
@@ -131,7 +132,7 @@ import os
 
 data = json.loads(os.environ["JSON_PAYLOAD"])
 assert isinstance(data, dict), data
-assert data["config"].find('instance_name = "e2e-inst-a"') >= 0, data["config"]
+assert 'instance_id = "018f4fb1-7a2c-7d1f-9d89-935b0ad7e135"' in data["config"], data["config"]
 PY
 }
 
@@ -155,9 +156,9 @@ assert_single_instance_write() {
 import json
 import os
 
-data = {item["instance_name"]: item["result"] for item in json.loads(os.environ["JSON_PAYLOAD"])}
-assert data["e2e-inst-a"]["tcp_ports"] == ["80", "443"], data
-assert data["e2e-inst-b"].get("tcp_ports", []) == [], data
+data = {item["instance_id"]: item["result"] for item in json.loads(os.environ["JSON_PAYLOAD"])}
+assert data["018f4fb1-7a2c-7d1f-9d89-935b0ad7e135"]["tcp_ports"] == ["80", "443"], data
+assert data["018f4fb1-7a2c-7d1f-9d89-935b0ad7e136"].get("tcp_ports", []) == [], data
 PY
 }
 
@@ -190,7 +191,8 @@ main() {
   trap cleanup EXIT
 
   cat >"$TMPDIR_PATH/inst-a.toml" <<'EOF'
-instance_name = "e2e-inst-a"
+instance_id = "018f4fb1-7a2c-7d1f-9d89-935b0ad7e135"
+hostname = "e2e-inst-a"
 listeners = []
 
 [network_identity]
@@ -203,7 +205,8 @@ enable_ipv6 = false
 EOF
 
   cat >"$TMPDIR_PATH/inst-b.toml" <<'EOF'
-instance_name = "e2e-inst-b"
+instance_id = "018f4fb1-7a2c-7d1f-9d89-935b0ad7e136"
+hostname = "e2e-inst-b"
 listeners = []
 
 [network_identity]
@@ -246,7 +249,7 @@ EOF
   local single_output
   run_cmd single_output \
     "Case 3: explicit instance selector stays single-instance" \
-    "$CORE_BIN" --instance-name e2e-inst-a -o json node
+    "$CORE_BIN" --instance-id 018f4fb1-7a2c-7d1f-9d89-935b0ad7e135 -o json node
   assert_single_instance_json "$single_output"
 
   local set_whitelist_output
@@ -263,7 +266,7 @@ EOF
   local clear_whitelist_output
   run_cmd clear_whitelist_output \
     "Case 6: explicit selector write only touches one instance" \
-    "$CORE_BIN" --instance-name e2e-inst-b whitelist clear-tcp
+    "$CORE_BIN" --instance-id 018f4fb1-7a2c-7d1f-9d89-935b0ad7e136 whitelist clear-tcp
 
   local cleared_output
   run_cmd cleared_output \
@@ -293,7 +296,7 @@ PY
   local credential_single
   run_cmd credential_single \
     "Case 10: credential peers explicit selector returns one instance" \
-    "$CORE_BIN" --instance-name e2e-inst-a -o json credential peers
+    "$CORE_BIN" --instance-id 018f4fb1-7a2c-7d1f-9d89-935b0ad7e135 -o json credential peers
   JSON_PAYLOAD="$credential_single" "$PYTHON_BIN" - <<'PY'
 import json
 import os

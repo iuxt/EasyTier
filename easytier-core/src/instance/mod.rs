@@ -203,8 +203,6 @@ pub struct CoreConnectivityConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CoreInstanceConfig {
-    #[serde(default = "crate::config::toml::default_instance_name")]
-    pub instance_name: String,
     pub peer: PortablePeerManagerConfig,
     pub connectivity: CoreConnectivityConfig,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -403,7 +401,6 @@ pub struct CoreInstance<H>
 where
     H: CoreInstanceHost,
 {
-    instance_name: String,
     #[allow(dead_code)]
     management: ManagementState,
     pub(super) instance_runtime: Arc<dyn InstanceRuntimeHost>,
@@ -506,7 +503,6 @@ where
     ) -> anyhow::Result<Arc<Self>> {
         build_capabilities::validate(&config)?;
         let connectivity_mode = config.connectivity.startup_plan.connectivity;
-        let instance_name = config.instance_name;
         #[cfg(feature = "vpn-portal")]
         let vpn_portal_config = config.vpn_portal.clone();
         let (packet_tx, packet_rx) = host_packet_channel();
@@ -854,7 +850,6 @@ where
         ));
 
         Ok(Arc::new(Self {
-            instance_name,
             management: ManagementState::new(toml_config, host_config),
             instance_runtime,
             state: AtomicU8::new(CoreInstanceState::Created as u8),

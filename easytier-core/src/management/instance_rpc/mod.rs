@@ -116,11 +116,7 @@ where
         &self,
         identifier: Option<&easytier_proto::api::instance::InstanceIdentifier>,
     ) -> rpc_types::error::Result<Arc<CoreInstance<Self::Host>>> {
-        validate_bound_identifier(
-            identifier,
-            self.instance.instance_id(),
-            self.instance.instance_name(),
-        )?;
+        validate_bound_identifier(identifier, self.instance.instance_id())?;
         Ok(self.instance.clone())
     }
 }
@@ -350,19 +346,12 @@ mod config_patch_persistence_tests {
 fn validate_bound_identifier(
     identifier: Option<&easytier_proto::api::instance::InstanceIdentifier>,
     instance_id: uuid::Uuid,
-    instance_name: &str,
 ) -> anyhow::Result<()> {
     use easytier_proto::api::instance::instance_identifier::Selector;
 
     let matches = match identifier.and_then(|identifier| identifier.selector.as_ref()) {
-        None
-        | Some(Selector::InstanceSelector(
-            easytier_proto::api::instance::instance_identifier::InstanceSelector { name: None },
-        )) => true,
+        None => true,
         Some(Selector::Id(selected)) => uuid::Uuid::from(*selected) == instance_id,
-        Some(Selector::InstanceSelector(selector)) => {
-            selector.name.as_deref() == Some(instance_name)
-        }
     };
     if !matches {
         anyhow::bail!("instance selector does not match the bound WASM instance");
@@ -628,10 +617,7 @@ where
 #[cfg(test)]
 mod tests {
     use easytier_proto::{
-        api::instance::{
-            InstanceIdentifier,
-            instance_identifier::{InstanceSelector, Selector},
-        },
+        api::instance::{InstanceIdentifier, instance_identifier::Selector},
         common::Uuid as UuidPb,
     };
 
@@ -643,25 +629,13 @@ mod tests {
         let by_id = |id| InstanceIdentifier {
             selector: Some(Selector::Id(UuidPb::from(id))),
         };
-        let by_name = |name: &str| InstanceIdentifier {
-            selector: Some(Selector::InstanceSelector(InstanceSelector {
-                name: Some(name.to_owned()),
-            })),
-        };
-
-        assert!(validate_bound_identifier(None, instance_id, "current").is_ok());
+        assert!(validate_bound_identifier(None, instance_id).is_ok());
         assert!(
-            validate_bound_identifier(Some(&by_id(instance_id)), instance_id, "current").is_ok()
+            validate_bound_identifier(Some(&InstanceIdentifier::default()), instance_id).is_ok()
         );
+        assert!(validate_bound_identifier(Some(&by_id(instance_id)), instance_id).is_ok());
         assert!(
-            validate_bound_identifier(Some(&by_name("current")), instance_id, "current").is_ok()
-        );
-        assert!(
-            validate_bound_identifier(Some(&by_id(uuid::Uuid::new_v4())), instance_id, "current")
-                .is_err()
-        );
-        assert!(
-            validate_bound_identifier(Some(&by_name("other")), instance_id, "current").is_err()
+            validate_bound_identifier(Some(&by_id(uuid::Uuid::new_v4())), instance_id).is_err()
         );
     }
 }

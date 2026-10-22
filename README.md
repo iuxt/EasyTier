@@ -40,7 +40,7 @@ Process settings belong to `[core]`, with logging in `[console_logger]` and `[fi
 Node A:
 
 ```toml
-instance_name = "node-a"
+hostname = "node-a"
 ipv4 = "10.144.0.1/16"
 listeners = ["tcp://0.0.0.0:11010", "udp://0.0.0.0:11010"]
 
@@ -64,8 +64,8 @@ In another terminal, query the running process:
 easytier-core peer
 easytier-core route
 easytier-core node
-# Management options go before the subcommand.
-easytier-core -n node-a -o json peer
+# Replace the UUID with the instance ID from node; options go before the subcommand.
+easytier-core --instance-id 018f4fb1-7a2c-7d1f-9d89-935b0ad7e135 -o json peer
 ping 10.144.0.2
 ```
 

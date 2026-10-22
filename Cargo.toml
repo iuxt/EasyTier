@@ -6,7 +6,15 @@ members = [
     "easytier",
 ]
 default-members = ["easytier"]
-exclude = []
+exclude = [
+    "vendor/kcp-sys",
+    "vendor/rust-tun",
+    "vendor/service-manager-rs",
+    "vendor/thunk",
+    "vendor/tokio-websockets",
+    "vendor/windivert-rust",
+    "vendor/kcp-sys-legacy",
+]
 
 [workspace.package]
 edition = "2024"
@@ -67,7 +75,7 @@ stun_codec = "0.4.0"
 sys-locale = "0.3"
 tempfile = "3.27.0"
 thiserror = "2.0"
-thunk-rs = { git = "https://github.com/EasyTier/thunk.git", default-features = false }
+thunk-rs = { path = "vendor/thunk/thunk-rs", default-features = false }
 tokio = { version = "1.53", default-features = false }
 tokio-rustls = { version = "0.26", default-features = false }
 tokio-util = "0.7.19"

@@ -157,9 +157,6 @@ pub(crate) fn merge_network_config_toml(
             generated.insert(key.clone(), value.clone());
         }
     }
-    if !original.contains_key("instance_name") {
-        generated.remove("instance_name");
-    }
 
     let mut merged_flags: toml::Table = original
         .remove("flags")
@@ -263,7 +260,6 @@ impl NetworkConfigExt for NetworkConfig {
         {
             cfg.set_dhcpv6_config(super::DhcpConfig::from_cidr(cidr)?);
         }
-        cfg.set_inst_name(self.network_name.clone().unwrap_or_default());
 
         // The web UI does not expose credential inputs directly, but imported/saved
         // NetworkConfig objects still need to preserve credential-mode instances via
@@ -1089,7 +1085,6 @@ private_mode = false
     #[test]
     fn browser_merge_preserves_fields_outside_the_shared_form() {
         let original = r#"
-instance_name = "module-instance"
 rpc_portal = "0.0.0.0:15888"
 tcp_whitelist = ["22"]
 stun_servers = ["custom.example.com:3478"]
@@ -1110,7 +1105,6 @@ disable_p2p = true
         let merged = merge_network_config_toml(original, &network_config).unwrap();
         let merged: toml::Table = toml::from_str(&merged).unwrap();
 
-        assert_eq!(merged["instance_name"].as_str(), Some("module-instance"));
         assert_eq!(merged["rpc_portal"].as_str(), Some("0.0.0.0:15888"));
         assert_eq!(merged["tcp_whitelist"][0].as_str(), Some("22"));
         assert_eq!(

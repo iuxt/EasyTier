@@ -7,11 +7,10 @@ import "acl.proto";
 package api.instance;
 
 message InstanceIdentifier {
-  message InstanceSelector { optional string name = 1; }
+  reserved 2;
 
   oneof selector {
     common.UUID id = 1;
-    InstanceSelector instance_selector = 2;
   }
 }
 

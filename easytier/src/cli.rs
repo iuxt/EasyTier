@@ -60,16 +60,15 @@ use crate::{
                 ShowNodeInfoRequest, StatsRpc, StatsRpcClientFactory, TcpProxyEntryState,
                 TcpProxyEntryTransportType, TcpProxyRpc, TcpProxyRpcClientFactory,
                 TrustedKeySourcePb, VpnPortalInfo, VpnPortalRpc, VpnPortalRpcClientFactory,
-                instance_identifier::{InstanceSelector, Selector},
-                list_global_foreign_network_response, list_peer_route_pair,
+                instance_identifier::Selector, list_global_foreign_network_response,
+                list_peer_route_pair,
             },
             logger::{
                 GetLoggerConfigRequest, LogLevel, LoggerRpc, LoggerRpcClientFactory,
                 SetLoggerConfigRequest,
             },
             manage::{
-                ListNetworkInstanceMetaRequest, ListNetworkInstanceRequest, ProcessManageRpc,
-                ProcessManageRpcClientFactory,
+                ListNetworkInstanceRequest, ProcessManageRpc, ProcessManageRpcClientFactory,
                 VpnPortalClientConfig as ManageVpnPortalClientConfig,
             },
         },
@@ -160,20 +159,12 @@ enum OutputFormat {
 struct InstanceSelectArgs {
     #[arg(short = 'i', long = "instance-id", help = "the instance id")]
     id: Option<uuid::Uuid>,
-
-    #[arg(short = 'n', long = "instance-name", help = "the instance name")]
-    name: Option<String>,
 }
 
 impl From<&InstanceSelectArgs> for InstanceIdentifier {
     fn from(args: &InstanceSelectArgs) -> Self {
         InstanceIdentifier {
-            selector: match args.id {
-                Some(id) => Some(Selector::Id(id.into())),
-                None => Some(Selector::InstanceSelector(InstanceSelector {
-                    name: args.name.clone(),
-                })),
-            },
+            selector: args.id.map(|id| Selector::Id(id.into())),
         }
     }
 }
@@ -546,23 +537,11 @@ type Error = anyhow::Error;
 struct InstanceTarget {
     identifier: InstanceIdentifier,
     instance_id: String,
-    instance_name: String,
 }
 
 struct InstanceResult<T> {
     target: Option<InstanceTarget>,
     value: T,
-}
-
-impl InstanceTarget {
-    fn label(&self) -> String {
-        match (self.instance_name.is_empty(), self.instance_id.is_empty()) {
-            (false, false) => format!("{} ({})", self.instance_name, self.instance_id),
-            (false, true) => self.instance_name.clone(),
-            (true, false) => self.instance_id.clone(),
-            (true, true) => "selected instance".to_string(),
-        }
-    }
 }
 
 impl<T> InstanceResult<T> {
@@ -772,14 +751,17 @@ mod tests {
     fn credential_peers_command_parses_without_changing_list() {
         let (options, command) = parse_management_command(&[
             "easytier-core",
-            "-n",
-            "network",
+            "--instance-id",
+            "018f4fb1-7a2c-7d1f-9d89-935b0ad7e135",
             "-o",
             "json",
             "credential",
             "peers",
         ]);
-        assert_eq!(options.instance_select.name.as_deref(), Some("network"));
+        assert_eq!(
+            options.instance_select.id,
+            Some(uuid::uuid!("018f4fb1-7a2c-7d1f-9d89-935b0ad7e135"))
+        );
         assert_eq!(options.output_format, OutputFormat::Json);
         assert!(matches!(
             command,
@@ -1148,7 +1130,7 @@ struct PeerCenterDirectPeerData {
 
 impl<'a> CommandHandler<'a> {
     fn has_explicit_instance_selector(&self) -> bool {
-        self.instance_select.id.is_some() || self.instance_select.name.is_some()
+        self.instance_select.id.is_some()
     }
 
     fn scoped_to_instance(&self, target: &InstanceTarget) -> Self {
@@ -1164,7 +1146,7 @@ impl<'a> CommandHandler<'a> {
     }
 
     fn print_target_header(&self, target: &InstanceTarget) {
-        println!("== {} ==", target.label());
+        println!("== {} ==", target.instance_id);
     }
 
     async fn get_manage_client(
@@ -1203,30 +1185,6 @@ impl<'a> CommandHandler<'a> {
             return Err(anyhow::anyhow!("no running instances found"));
         }
 
-        let metas = client
-            .list_network_instance_meta(
-                BaseController::default(),
-                ListNetworkInstanceMetaRequest {
-                    inst_ids: inst_ids.iter().cloned().map(Into::into).collect(),
-                },
-            )
-            .await?
-            .metas;
-
-        let mut name_map = HashMap::new();
-        for meta in metas {
-            if let Some(inst_id) = meta.inst_id {
-                name_map.insert(
-                    uuid::Uuid::from(inst_id),
-                    if meta.instance_name.is_empty() {
-                        meta.network_name
-                    } else {
-                        meta.instance_name
-                    },
-                );
-            }
-        }
-
         let mut targets = inst_ids
             .into_iter()
             .map(|inst_id| InstanceTarget {
@@ -1234,11 +1192,10 @@ impl<'a> CommandHandler<'a> {
                     selector: Some(Selector::Id(inst_id.into())),
                 },
                 instance_id: inst_id.to_string(),
-                instance_name: name_map.remove(&inst_id).unwrap_or_default(),
             })
             .collect::<Vec<_>>();
 
-        targets.sort_by_key(|a| a.label());
+        targets.sort_by(|a, b| a.instance_id.cmp(&b.instance_id));
         Ok(Some(targets))
     }
 
@@ -1255,7 +1212,7 @@ impl<'a> CommandHandler<'a> {
                 let scoped = self.scoped_to_instance(&target);
                 let value = fetch(&scoped)
                     .await
-                    .with_context(|| format!("instance {}", target.label()))?;
+                    .with_context(|| format!("instance {}", target.instance_id))?;
                 results.push(InstanceResult::new(Some(target), value));
             }
             Ok(results)
@@ -1309,7 +1266,6 @@ impl<'a> CommandHandler<'a> {
                     .ok_or_else(|| anyhow::anyhow!("missing instance target for multi-result"))?;
                 Ok(serde_json::json!({
                     "instance_id": target.instance_id,
-                    "instance_name": target.instance_name,
                     "result": result.value,
                 }))
             })
@@ -2507,8 +2463,8 @@ impl<'a> CommandHandler<'a> {
             Some(targets) => {
                 let mut list = Vec::with_capacity(targets.len());
                 for target in targets {
-                    let label = target.label();
                     let scoped = self.scoped_to_instance(&target);
+                    let label = target.instance_id;
                     list.push((label, scoped.apply_acl_set(acl.clone()).await));
                 }
                 list

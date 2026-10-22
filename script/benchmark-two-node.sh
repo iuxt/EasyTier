@@ -108,7 +108,6 @@ write_config() {
     local path=$1 name=$2 address=$3 listeners=$4 peer=$5
     cat >"$path" <<EOF
 hostname = "$name"
-instance_name = "$name"
 ipv4 = "$address/24"
 listeners = $listeners
 $peer

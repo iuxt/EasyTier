@@ -340,7 +340,6 @@ impl CoreInstanceConfig {
         let stun_servers = config.get_stun_servers();
 
         Ok(Self {
-            instance_name: config.get_inst_name(),
             peer,
             managed_credentials,
             vpn_portal: (!host.ignore_unsupported_config || host.vpn_portal_enabled)
@@ -551,7 +550,6 @@ stun_servers_v6 = ["custom-v6.example.com:3478"]
         let config = TomlConfig::new_from_str(
             r#"
 instance_id = "018f4fb1-7a2c-7d1f-9d89-935b0ad7e135"
-instance_name = "wasi-test"
 hostname = "portable-host"
 ipv4 = "10.144.0.2/24"
 listeners = ["tcp://0.0.0.0:11010"]
@@ -570,7 +568,6 @@ disable_p2p = true
         .unwrap();
 
         let normalized = CoreInstanceConfig::from_toml(&config).unwrap();
-        assert_eq!(normalized.instance_name, "wasi-test");
         assert_eq!(
             normalized.peer.snapshot.runtime.core.node.instance_id,
             Some(*config.get_id().as_bytes())

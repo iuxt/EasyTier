@@ -42,7 +42,7 @@ sudo ./target/release/easytier-core -c /etc/easytier/config.toml
 在节点 A 的配置文件中写入：
 
 ```toml
-instance_name = "node-a"
+hostname = "node-a"
 ipv4 = "10.144.0.1/16"
 listeners = ["tcp://0.0.0.0:11010", "udp://0.0.0.0:11010"]
 
@@ -65,8 +65,8 @@ uri = "udp://NODE_A_PUBLIC_IP:11010"
 ./target/release/easytier-core peer
 ./target/release/easytier-core route
 ./target/release/easytier-core node
-# 指定网络实例和 JSON 输出（选项放在子命令前）
-./target/release/easytier-core -n node-a -o json peer
+# 将 UUID 替换为 node 输出的实例 ID（选项放在子命令前）
+./target/release/easytier-core --instance-id 018f4fb1-7a2c-7d1f-9d89-935b0ad7e135 -o json peer
 ping 10.144.0.2
 ```
 

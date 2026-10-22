@@ -888,13 +888,13 @@ async fn query_udp_mapping(
 }
 
 fn create_test_instance_config(
-    inst_name: &str,
+    hostname: &str,
     netns: Option<&str>,
     ipv4: &str,
     ipv6: &str,
 ) -> TomlConfigLoader {
     let config = TomlConfigLoader::default();
-    config.set_inst_name(inst_name.to_owned());
+    config.set_hostname(Some(hostname.to_owned()));
     config.set_netns(netns.map(ToOwned::to_owned));
     config.set_ipv4(Some(ipv4.parse().unwrap()));
     config.set_ipv6(Some(ipv6.parse().unwrap()));
@@ -903,7 +903,7 @@ fn create_test_instance_config(
 }
 
 fn create_test_instance_with_process_runtime(
-    inst_name: &str,
+    hostname: &str,
     netns: Option<&str>,
     ipv4: &str,
     ipv6: &str,
@@ -911,7 +911,7 @@ fn create_test_instance_with_process_runtime(
     configure_flags: impl FnOnce(&mut crate::common::config::Flags),
     process_runtime: Arc<CoreProcessRuntime>,
 ) -> Instance {
-    let config = create_test_instance_config(inst_name, netns, ipv4, ipv6);
+    let config = create_test_instance_config(hostname, netns, ipv4, ipv6);
     let mut flags = config.get_flags();
     flags.disable_tcp_hole_punching = true;
     configure_flags(&mut flags);

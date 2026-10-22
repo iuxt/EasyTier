@@ -13,6 +13,8 @@
 !easytier-core/**
 !easytier-proto/
 !easytier-proto/**
+!vendor/
+!vendor/**
 **/target
 **/node_modules
 **/dist

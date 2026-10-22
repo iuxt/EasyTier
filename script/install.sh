@@ -240,7 +240,6 @@ INIT() {
 
   # Create default blank file config
   cat >$INSTALL_PATH/config/default.conf <<EOF
-instance_name = "default"
 dhcp = true
 listeners = [
     "tcp://0.0.0.0:11010",

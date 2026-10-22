@@ -193,10 +193,10 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("config.toml");
         std::fs::write(&path, "[core]\nconfig_dir = '.'\ndaemon = true\n").unwrap();
-        std::fs::write(dir.path().join("network.toml"), "instance_name = 'network'").unwrap();
+        std::fs::write(dir.path().join("network.toml"), "hostname = 'network'").unwrap();
         let (_, configs) = StartupConfig::load(&path).await.unwrap();
         assert_eq!(configs.len(), 1);
-        assert_eq!(configs[0].0.get_inst_name(), "network");
+        assert_eq!(configs[0].0.get_hostname(), "network");
         std::fs::write(dir.path().join("invalid.toml"), "dhcp = 'invalid'").unwrap();
         assert!(StartupConfig::load(&path).await.is_err());
     }

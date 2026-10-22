@@ -1,0 +1,71 @@
+{
+  "sources": [
+    {
+      "path": "vendor/kcp-sys/kcp",
+      "commit": "32da082e529a26730aea3eb19922f80634ee6dea",
+      "repository": "https://github.com/skywind3000/kcp",
+      "submodule_of": "vendor/kcp-sys"
+    },
+    {
+      "path": "vendor/kcp-sys",
+      "commit": "268533568d734ae89dc89603078da3ca522effe1",
+      "repository": "https://github.com/EasyTier/kcp-sys"
+    },
+    {
+      "path": "vendor/rust-tun",
+      "commit": "5ba6be073e5b486b68c12f80fac5cfb50601f024",
+      "repository": "https://github.com/EasyTier/rust-tun"
+    },
+    {
+      "path": "vendor/service-manager-rs",
+      "commit": "5eb28f7a686858eea4f4933534ed989d3b71dc2a",
+      "repository": "https://github.com/EasyTier/service-manager-rs"
+    },
+    {
+      "path": "vendor/thunk",
+      "commit": "cbbeec75a66b7b3cf0824ae890d9d06bcfb9d1f3",
+      "repository": "https://github.com/EasyTier/thunk"
+    },
+    {
+      "path": "vendor/tokio-websockets",
+      "commit": "dc9771c7c215882349c3cb328877550a3593df21",
+      "repository": "https://github.com/EasyTier/tokio-websockets"
+    },
+    {
+      "path": "vendor/windivert-rust/windivert-sys/vendor",
+      "commit": "b90fad29446667c6230accd078e91a77074b7788",
+      "repository": "https://github.com/EasyTier/WinDivert",
+      "submodule_of": "vendor/windivert-rust"
+    },
+    {
+      "path": "vendor/windivert-rust",
+      "commit": "adcc56d1550f7b5377ec2b3429f413ee24a77375",
+      "repository": "https://github.com/EasyTier/windivert-rust"
+    },
+    {
+      "path": "vendor/kcp-sys-legacy/kcp",
+      "commit": "32da082e529a26730aea3eb19922f80634ee6dea",
+      "repository": "https://github.com/skywind3000/kcp",
+      "submodule_of": "vendor/kcp-sys-legacy"
+    },
+    {
+      "path": "vendor/kcp-sys-legacy",
+      "commit": "d7427c22d764deb1860a7d37acc446ed5033464c",
+      "repository": "https://github.com/EasyTier/kcp-sys"
+    }
+  ],
+  "binary_assets": [
+    {
+      "url": "https://github.com/Chuyu-Team/VC-LTL5/releases/download/v5.2.2/VC-LTL-Binary.7z",
+      "version": "5.2.2",
+      "sha256": "04aa46a7d2af655bcf42c4937504525eb7e66a75910ed42fd25a1cdcec587df0",
+      "selection": "Windows 7 compatibility libraries for x86 and x86_64, without PDB debug symbols"
+    },
+    {
+      "url": "https://github.com/Chuyu-Team/YY-Thunks/releases/download/v1.1.7/YY-Thunks-Objs.zip",
+      "version": "1.1.7",
+      "sha256": "c3066f3f074ebc2a89b2def5f427bdea238dee17349d2bab579af519781691ab",
+      "selection": "Windows 7 compatibility libraries for x86 and x86_64, without PDB debug symbols"
+    }
+  ]
+}

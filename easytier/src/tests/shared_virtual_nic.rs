@@ -44,7 +44,7 @@ impl SharedTestRuntime {
 }
 
 fn test_config(
-    instance_name: &str,
+    hostname: &str,
     network_name: &str,
     network_secret: &str,
     netns: Option<&str>,
@@ -52,7 +52,7 @@ fn test_config(
     ipv4: &str,
 ) -> TomlConfigLoader {
     let config = TomlConfigLoader::default();
-    config.set_inst_name(instance_name.to_owned());
+    config.set_hostname(Some(hostname.to_owned()));
     config.set_network_identity(NetworkIdentity::new(
         network_name.to_owned(),
         network_secret.to_owned(),
