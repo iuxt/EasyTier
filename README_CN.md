@@ -22,6 +22,8 @@ cargo build -p easytier --release --bin easytier-core
 
 管理服务使用 Go 开发，内嵌 Web 界面，连接 MySQL 8 保存设备、审批、配置和日志。部署步骤和完整说明见 [服务端文档](easytier-server/README.md)。
 
+Web 镜像可用 `./easytier-server/build.sh` 单独构建；多架构推送、环境变量和部署示例见 [Web Docker 部署文档](easytier-server/docs/deployment.md)。
+
 ```sh
 cd easytier-server
 cp .env.example .env

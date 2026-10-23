@@ -4,12 +4,15 @@ Go HTTP 服务内嵌前端静态文件，运行时只需要一个服务端二进
 
 ## 部署
 
+完整步骤见 [Docker 镜像构建与部署文档](docs/deployment.md)，包含多架构构建、镜像推送、环境变量、HTTPS、外部 MySQL、备份和升级。
+
 ```sh
 cd easytier-server
+./build.sh
 cp .env.example .env
 # 修改 .env 中四个独立密码/token，建议使用 openssl rand -hex 32 生成
 # 本机 HTTP 调试设置 COOKIE_SECURE=false；HTTPS 部署保持 true
-docker compose up -d --build
+docker compose up -d --no-build
 ```
 
 生产环境用 Nginx/Caddy 将 `https://vpn.example.com` 反向代理到 `127.0.0.1:8080`，保留原始 Host；Web、API 使用同一域名根路径。MySQL 不需要向外暴露端口。浏览器用 `ADMIN_PASSWORD` 登录。服务默认启用 Secure、HttpOnly、SameSite=Strict 会话 Cookie；本机 HTTP 开发必须显式设置 `COOKIE_SECURE=false`。
