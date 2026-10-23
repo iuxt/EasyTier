@@ -40,3 +40,7 @@ node_modules
 .flake-profile
 
 .test-env/
+
+# Managed server secrets and executable
+/easytier-server/.env
+/easytier-server/easytier-server

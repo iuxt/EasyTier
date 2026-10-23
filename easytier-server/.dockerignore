@@ -1,0 +1,7 @@
+.env
+.env.*
+!.env.example
+.git
+easytier-server
+*.log
+__pycache__

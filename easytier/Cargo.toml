@@ -159,6 +159,7 @@ smoltcp = { workspace = true, optional = true, features = [
     "socket-raw",
 ] }
 serde_json.workspace = true
+reqwest = { workspace = true, optional = true, features = ["json", "rustls-no-provider"] }
 
 clap = { workspace = true, features = [
     "string",
@@ -430,6 +431,8 @@ extended-services = [
     "proxy-cidr-monitor",
 ]
 management = [
+    "dep:reqwest",
+    "dep:rustls",
     "dep:atomic-write-file",
     "process-management",
     "logging",

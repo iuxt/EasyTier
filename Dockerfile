@@ -50,4 +50,4 @@ WORKDIR /app
 COPY --from=build /out/ /usr/local/bin/
 EXPOSE 11010/tcp 11010/udp 11011/tcp 11011/udp 11012/tcp
 ENTRYPOINT ["/usr/bin/tini", "--", "easytier-core"]
-CMD ["-c", "/etc/easytier/config.toml"]
+CMD ["--help"]

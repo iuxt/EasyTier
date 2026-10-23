@@ -58,6 +58,55 @@ __log__!(const LOG_TARGET = "CORE");
 
 static LOGGER: OnceLock<Logger> = OnceLock::new();
 
+/// A bounded, nonblocking sink for the managed client's central log uploader.
+#[cfg(feature = "management")]
+#[derive(Clone, serde::Serialize)]
+pub(crate) struct RemoteLog {
+    pub id: String,
+    pub timestamp: String,
+    pub level: String,
+    pub target: String,
+    pub message: String,
+}
+
+#[cfg(feature = "management")]
+static REMOTE_LOGS: OnceLock<tokio::sync::mpsc::Sender<RemoteLog>> = OnceLock::new();
+#[cfg(feature = "management")]
+static DROPPED_LOGS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+#[cfg(feature = "management")]
+pub(crate) fn init_remote() -> anyhow::Result<tokio::sync::mpsc::Receiver<RemoteLog>> {
+    let (sender, receiver) = tokio::sync::mpsc::channel(4096);
+    REMOTE_LOGS
+        .set(sender)
+        .map_err(|_| anyhow::anyhow!("remote logger already initialized"))?;
+    install(Logger::new(TargetFilter::off(), FileSink::disabled()))?;
+    Ok(receiver)
+}
+
+#[cfg(feature = "management")]
+pub(crate) fn take_dropped_remote_logs() -> u64 {
+    DROPPED_LOGS.swap(0, Ordering::Relaxed)
+}
+
+#[cfg(feature = "management")]
+fn remote_enabled(level: Level) -> bool {
+    REMOTE_LOGS.get().is_some() && level <= Level::Info
+}
+#[cfg(not(feature = "management"))]
+fn remote_enabled(_: Level) -> bool {
+    false
+}
+
+#[cfg(feature = "management")]
+fn truncate_utf8(value: &str, limit: usize) -> String {
+    let mut end = value.len().min(limit);
+    while !value.is_char_boundary(end) {
+        end -= 1;
+    }
+    value[..end].to_owned()
+}
+
 pub fn init_console() -> anyhow::Result<()> {
     install(Logger::new(
         TargetFilter::console(Some(LevelFilter::Info))?,
@@ -213,7 +262,9 @@ struct Logger {
 impl Logger {
     fn new(console: TargetFilter, file: FileSink) -> Self {
         let console_max_level = level_rank(console.max_level());
-        let active_max_level = console_max_level.max(file.max_level_rank());
+        let active_max_level = console_max_level
+            .max(file.max_level_rank())
+            .max(if remote_enabled(Level::Info) { 3 } else { 0 });
         Self {
             console,
             console_max_level,
@@ -225,7 +276,9 @@ impl Logger {
 
     fn enabled(&self, target: &str, level: Level) -> bool {
         level_is_enabled(self.active_max_level.load(Ordering::Acquire), level)
-            && (self.console_enabled(target, level) || self.file.enabled(target, level))
+            && (self.console_enabled(target, level)
+                || self.file.enabled(target, level)
+                || remote_enabled(level))
     }
 
     fn console_enabled(&self, target: &str, level: Level) -> bool {
@@ -233,10 +286,34 @@ impl Logger {
     }
 
     fn max_level(&self) -> LevelFilter {
-        self.console.max_level().max(self.file.max_level())
+        self.console
+            .max_level()
+            .max(self.file.max_level())
+            .max(if remote_enabled(Level::Info) {
+                LevelFilter::Info
+            } else {
+                LevelFilter::Off
+            })
     }
 
     fn emit(&self, level: Level, target: &str, message: &str) {
+        #[cfg(feature = "management")]
+        if remote_enabled(level) {
+            if let Some(sender) = REMOTE_LOGS.get() {
+                if sender
+                    .try_send(RemoteLog {
+                        id: uuid::Uuid::new_v4().to_string(),
+                        timestamp: timestamp_rfc3339_utc(),
+                        level: level.to_string(),
+                        target: truncate_utf8(target, 255),
+                        message: truncate_utf8(message, 8192),
+                    })
+                    .is_err()
+                {
+                    DROPPED_LOGS.fetch_add(1, Ordering::Relaxed);
+                }
+            }
+        }
         let console_enabled = self.console_enabled(target, level);
         let file_enabled = self.file.enabled(target, level);
         if !console_enabled && !file_enabled {

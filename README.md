@@ -18,58 +18,36 @@ The source workspace requires three directories: `easytier/` contains the native
 
 `easytier-core` provides both networking and diagnostic management commands. Only this executable needs to be built and installed.
 
-## Configure and start
+## Central management
 
-All core startup settings come from a TOML file. [config.toml](config.toml) is the complete template with Chinese comments, including optional network, logging, security, ACL and gateway settings.
+The Go management server embeds its Web interface and stores devices, approvals, configurations and logs in MySQL 8. See the [server deployment guide](easytier-server/README.md).
 
-```bash
-cp config.toml target/release/config.toml
-# Edit the network name, secret and peers before starting.
-sudo ./target/release/easytier-core
-# Select another file, or validate without starting networking.
-sudo ./target/release/easytier-core -c /etc/easytier/config.toml
-./target/release/easytier-core -c /etc/easytier/config.toml --check-config
+```sh
+cd easytier-server
+cp .env.example .env
+# Set independent database passwords, ADMIN_PASSWORD and ENROLLMENT_TOKEN.
+# For local HTTP development only, set COOKIE_SECURE=false.
+docker compose up -d --build
 ```
 
-The default is `config.toml` beside the executable, regardless of the working directory. Environment variables and network/logging startup arguments are no longer accepted. Stdin is not a configuration source. `$VAR`, `${VAR}` and `~` remain literal. A relative `-c` path uses the working directory; paths inside a file use that file's directory. Missing, unreadable or invalid files cause an error.
+After configuring an HTTPS reverse proxy, start each client with:
 
-Process settings belong to `[core]`, with logging in `[console_logger]` and `[file_logger]`. `[core].config_dir` loads additional network files; only the main file supplies process and logging settings. The Web server, outbound Web configuration clients, desktop GUI and mobile GUI have been removed.
+```sh
+sudo ./target/release/easytier-core -h https://vpn.example.com -k YOUR_ENROLLMENT_TOKEN
+```
+
+New devices wait for approval in the Web interface. An administrator selects settings with switches and approves the device before its network starts. Clients synchronize every 5 seconds and stop after rejection, revocation, or expiration of their 45-second authorization lease. Runtime logs are uploaded to the server; the client console displays brief lifecycle messages. Persist `~/.easytier/managed`, or choose a persistent directory with `--state-dir`, to preserve device identity across restarts.
+
+Device settings use switches for automatic IP assignment, accepting initial connections, IPv6, direct connections and UDP hole punching. Select a connection node from the dropdown. The server generates and persists the shared network identity, manages listener addresses, and distributes peer lists automatically; no configuration file is shown in the Web interface.
 
 ## Connect two nodes
 
-Node A:
+1. Start both clients with the management server URL and enrollment token.
+2. Enable the connection-node switch for a reachable device A. If registering through a reverse proxy, enter a reachable hostname or IP in its address field, then approve it.
+3. Select A as device B's connection node, or keep automatic selection, then approve B.
+4. Keep automatic IP assignment enabled or use the form to assign distinct static internal addresses.
 
-```toml
-hostname = "node-a"
-ipv4 = "10.144.0.1/16"
-listeners = ["tcp://0.0.0.0:11010", "udp://0.0.0.0:11010"]
-
-[network_identity]
-network_name = "my-network"
-network_secret = "replace-with-a-long-random-secret"
-```
-
-On Node B, use the same identity, set `ipv4 = "10.144.0.2/16"`, and add:
-
-```toml
-[[peer]]
-uri = "udp://NODE_A_PUBLIC_IP:11010"
-```
-
-Start both nodes with `easytier-core -c /path/to/config.toml`. Add further peers or public relay endpoints with additional `[[peer]]` sections. See the template for subnet proxies and WireGuard portals.
-
-In another terminal, query the running process:
-
-```bash
-easytier-core peer
-easytier-core route
-easytier-core node
-# Replace the UUID with the instance ID from node; options go before the subcommand.
-easytier-core --instance-id 018f4fb1-7a2c-7d1f-9d89-935b0ad7e135 -o json peer
-ping 10.144.0.2
-```
-
-Management commands always connect to the local `127.0.0.1:15888` endpoint and do not accept a remote address. Keep `[core].rpc_portal` set to this address to query the running local process. They do not read startup configuration or start a new network process. Startup options such as `-c` and `--check-config` cannot be combined with management subcommands. Run `easytier-core --help` for all commands or `easytier-core peer --help` for subcommand help.
+The connection node uses TCP/UDP port 11010 by default. The Go management service does not act as a VPN relay. View runtime state and logs in the Web interface. Use `--help` for help; `-h` selects the server. Local files selected with `-c` are retained only for developer validation with `--check-config`.
 
 ## Related Projects
 

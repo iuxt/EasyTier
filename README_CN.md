@@ -18,59 +18,36 @@ cargo build -p easytier --release --bin easytier-core
 
 `easytier-core` 同时提供组网和诊断管理命令，只需构建和安装这一个程序。
 
-## 配置与启动
+## 统一管理与启动
 
-所有 `easytier-core` 启动设置只从 TOML 文件读取。完整中文模板位于 [config.toml](config.toml)，包含网络、进程、日志、安全模式、ACL、端口转发等配置及可选示例。
+管理服务使用 Go 开发，内嵌 Web 界面，连接 MySQL 8 保存设备、审批、配置和日志。部署步骤和完整说明见 [服务端文档](easytier-server/README.md)。
 
-```bash
-# 将模板复制到可执行文件同级目录，然后修改网络名称、密钥和对端地址
-cp config.toml target/release/config.toml
-# 默认读取可执行文件旁的 config.toml，不依赖当前工作目录
-sudo ./target/release/easytier-core
-# 或显式指定文件
-sudo ./target/release/easytier-core -c /etc/easytier/config.toml
-# 只检查配置，不启动网络
-./target/release/easytier-core -c /etc/easytier/config.toml --check-config
+```sh
+cd easytier-server
+cp .env.example .env
+# 修改数据库密码、ADMIN_PASSWORD、ENROLLMENT_TOKEN
+# 本机 HTTP 调试需设置 COOKIE_SECURE=false
+docker compose up -d --build
 ```
 
-不再支持通过环境变量或网络/日志启动参数设置配置，也不支持 stdin 配置。文件中的 `$VAR`、`${VAR}` 和 `~` 按字面值读取。`-c` 的相对路径相对于启动工作目录；文件中的相对路径相对于该文件所在目录。文件缺失、无法读取或 TOML 无效时退出报错。
+配置 HTTPS 反向代理后，客户端只需：
 
-进程参数位于 `[core]`，日志位于 `[console_logger]` 和 `[file_logger]`。额外网络文件可通过 `[core].config_dir` 配置；只有主配置文件的进程和日志设置生效。Web 配置服务、远程 Web 配置客户端、桌面和移动 GUI 已移除。
+```sh
+sudo ./target/release/easytier-core -h https://vpn.example.com -k 你的注册token
+```
+
+客户端注册后在 Web 中显示为“等待审批”。管理员通过开关选择功能并点击“同意接入”后，客户端才启动网络。配置每 5 秒同步，支持在线修改、拒绝及撤销接入；失联超过 45 秒授权租约后停止网络。客户端终端只显示简短状态，运行日志集中到服务端查看。设备身份默认保存在 `~/.easytier/managed`，容器应通过 `--state-dir` 指定并持久化目录。
+
+Web 直接提供自动分配内网 IP、作为接入节点、IPv6、设备直连、UDP 打洞等开关，并通过下拉框选择接入节点。组网密钥和监听地址由服务端自动管理，不需要查看或编辑配置文件。
 
 ## 两个节点组网
 
-在节点 A 的配置文件中写入：
+1. 两台设备均使用服务端地址和注册 token 启动，在 Web 中等待审批。
+2. 为可达的设备 A 开启“作为接入节点”；如经过反向代理，在“接入地址”填写其他设备能访问的域名或 IP，然后同意接入。
+3. 为设备 B 的“接入节点”选择设备 A（或保留自动选择），然后同意接入。
+4. 两台设备均可开启自动分配内网 IP，也可关闭后填写不同的固定内网地址，再保存设置。
 
-```toml
-hostname = "node-a"
-ipv4 = "10.144.0.1/16"
-listeners = ["tcp://0.0.0.0:11010", "udp://0.0.0.0:11010"]
-
-[network_identity]
-network_name = "my-network"
-network_secret = "replace-with-a-long-random-secret"
-```
-
-节点 B 使用相同网络名称和密钥，将地址改为 `10.144.0.2/16`，并加入对端：
-
-```toml
-[[peer]]
-uri = "udp://NODE_A_PUBLIC_IP:11010"
-```
-
-两台机器均使用 `easytier-core -c /path/to/config.toml` 启动。公共中继节点也通过 `[[peer]]` 指定，可重复添加。需要子网代理、静态路由或 WireGuard 门户时，参照模板对应章节。
-
-```bash
-# 在另一个终端查询运行中的进程
-./target/release/easytier-core peer
-./target/release/easytier-core route
-./target/release/easytier-core node
-# 将 UUID 替换为 node 输出的实例 ID（选项放在子命令前）
-./target/release/easytier-core --instance-id 018f4fb1-7a2c-7d1f-9d89-935b0ad7e135 -o json peer
-ping 10.144.0.2
-```
-
-管理子命令固定连接本机 `127.0.0.1:15888`，不提供远程地址参数。请保持 `[core].rpc_portal` 使用此地址，以便直接查询本机运行状态。它们不会读取启动配置或启动新的组网进程；`-c`、`--check-config` 等启动选项不能与管理子命令混用。使用 `easytier-core --help` 查看全部命令，或用 `easytier-core peer --help` 查看子命令帮助。
+接入节点默认需要 TCP/UDP 11010 可达；管理服务本身不承担 VPN 中继。设备运行状态与日志统一从 Web 查看。客户端帮助使用 `--help`，`-h` 表示服务端地址；`-c` 仅用于开发时的离线配置校验。
 
 ## 相关项目
 

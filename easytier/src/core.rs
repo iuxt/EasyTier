@@ -1,22 +1,19 @@
 use crate::{
     ShellType,
-    common::{config::ConfigLoader, constants::EASYTIER_VERSION, log},
-    instance::factory::native_cli_instance_manager,
-    rpc_service::ApiRpcServer,
+    common::{constants::EASYTIER_VERSION, log},
     utils::panic::setup_panic_handler,
 };
 use clap::{CommandFactory, FromArgMatches, Parser};
-use guarden::defer;
 #[cfg(feature = "jemalloc-prof")]
 use jemalloc_ctl::{Access as _, AsName as _, epoch, stats};
 use std::{
-    fmt::Write as _,
     path::PathBuf,
     process::ExitCode,
     sync::{Arc, atomic::AtomicBool},
 };
 
 mod config;
+mod managed;
 use config::StartupConfig;
 
 #[cfg(target_os = "windows")]
@@ -41,6 +38,7 @@ fn get_dump_profile_path(cur_allocated: usize, suffix: &str) -> String {
     )
 }
 
+#[cfg(feature = "jemalloc-prof")]
 fn dump_profile(_cur_allocated: usize) {
     #[cfg(feature = "jemalloc-prof")]
     {
@@ -67,14 +65,30 @@ fn dump_profile(_cur_allocated: usize) {
 }
 
 #[derive(Parser, Debug)]
-#[command(name = "easytier-core", author, version = EASYTIER_VERSION,
-    about = "EasyTier：从 TOML 文件启动网络，或通过子命令管理运行中的进程")]
+#[command(name = "easytier-core", author, version = EASYTIER_VERSION, disable_help_flag = true,
+    about = "EasyTier：注册到统一管理服务，审批后自动获取网络配置")]
 struct Cli {
+    #[arg(long, action = clap::ArgAction::Help, help = "显示帮助")]
+    help: Option<bool>,
+
+    #[arg(short = 'h', long = "server", requires = "token", conflicts_with_all = ["config_file", "check_config", "gen_autocomplete"], help = "统一管理服务地址（HTTPS）")]
+    server: Option<String>,
+
+    #[arg(short = 'k', long, requires = "server", help = "设备注册 token")]
+    token: Option<String>,
+
+    #[arg(
+        long,
+        requires = "server",
+        help = "设备身份存储目录，默认 ~/.easytier/managed"
+    )]
+    state_dir: Option<PathBuf>,
     #[arg(
         short = 'c',
         long = "config-file",
         value_name = "FILE",
-        help = "配置文件路径，默认读取可执行文件同级目录的 config.toml"
+        requires = "check_config",
+        help = "离线校验的配置文件路径（须配合 --check-config）"
     )]
     config_file: Option<PathBuf>,
 
@@ -106,9 +120,16 @@ impl Cli {
             use clap::{error::ErrorKind, parser::ValueSource};
             let explicit = |id| matches.value_source(id) == Some(ValueSource::CommandLine);
             if matches.subcommand_name().is_some() {
-                if ["config_file", "check_config", "gen_autocomplete"]
-                    .into_iter()
-                    .any(explicit)
+                if [
+                    "config_file",
+                    "check_config",
+                    "gen_autocomplete",
+                    "server",
+                    "token",
+                    "state_dir",
+                ]
+                .into_iter()
+                .any(explicit)
                 {
                     return Err(command.error(
                         ErrorKind::ArgumentConflict,
@@ -272,68 +293,17 @@ fn win_service_main(arg: Vec<std::ffi::OsString>) {
 }
 
 async fn run_main(cli: Cli) -> anyhow::Result<()> {
-    defer!(dump_profile(0););
-    // Read and validate every file before opening listeners or starting instances.
-    let path = cli.config_path()?;
-    let (startup, configs) = StartupConfig::load(&path).await?;
-    log::init_from_config_file(
-        &startup,
-        true,
-        &["CORE", "easytier_core::instance::manager"],
-    )?;
-    let manager =
-        Arc::new(native_cli_instance_manager().with_config_path(startup.core.config_dir.clone()));
-    let _rpc_server = ApiRpcServer::new(
-        startup.core.rpc_portal.clone(),
-        startup.core.rpc_portal_whitelist.clone(),
-        manager.clone(),
-    )?
-    .serve()
-    .await?;
-
-    let _daemon_guard = if startup.core.daemon {
-        Some(manager.register_daemon())
-    } else {
-        None
-    };
-
-    for (cfg, control) in configs {
-        log::info!(path = ?control.path, config = %cfg.dump_redacted(), "Starting easytier from config file");
-        manager.run_network_instance(cfg, control)?;
-    }
-
-    #[cfg(unix)]
-    let mut sigterm = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
-    #[cfg(unix)]
-    let sigterm = sigterm.recv();
-    #[cfg(not(unix))]
-    let sigterm = std::future::pending::<()>();
-
-    tokio::select! {
-        _ = manager.wait() => {
-            let infos = manager.collect_network_infos().await?;
-            let mut errors = String::new();
-            for (instance_id, info) in infos {
-                if let Some(error) = info.error_msg {
-                    if errors.is_empty() {
-                        errors.push_str("some instances stopped with errors:");
-                    }
-                    write!(errors, "\n{instance_id}: {error}").unwrap();
-                }
-            }
-            if !errors.is_empty() {
-                return Err(anyhow::anyhow!(errors));
-            }
-        }
-        _ = tokio::signal::ctrl_c() => {
-            log::info!("ctrl-c received, exiting...");
-        }
-
-        _ = sigterm, if cfg!(unix) => {
-            log::warn!("terminate signal received, exiting...");
-        }
-    }
-    Ok(())
+    let server = cli.server.as_deref().ok_or_else(|| {
+        anyhow::anyhow!(
+            "请使用 easytier-core -h https://服务端地址 -k 注册token 启动；使用 --help 查看帮助"
+        )
+    })?;
+    managed::run(
+        server,
+        cli.token.as_deref().unwrap(),
+        cli.state_dir.as_deref(),
+    )
+    .await
 }
 
 fn memory_monitor(_force_dump: Arc<AtomicBool>) {
@@ -462,6 +432,8 @@ pub async fn main() -> ExitCode {
         ret_code = 1;
     }
 
+    #[cfg(feature = "jemalloc-prof")]
+    dump_profile(0);
     log::info!("Stopping easytier...");
     set_prof_active(false);
 
@@ -473,9 +445,37 @@ mod tests {
     use super::*;
 
     #[test]
+    fn managed_startup_arguments_are_paired_and_exclusive() {
+        let cli =
+            Cli::try_parse_from(["core", "-h", "https://example.com", "-k", "token"]).unwrap();
+        assert_eq!(cli.server.as_deref(), Some("https://example.com"));
+        assert!(
+            !Cli::try_parse_from(["core", "--help"])
+                .unwrap_err()
+                .use_stderr()
+        );
+        for args in [
+            vec!["core", "-h", "https://example.com"],
+            vec!["core", "-k", "token"],
+            vec!["core", "-c", "config.toml"],
+            vec!["core", "-h", "https://example.com", "-k", "token", "peer"],
+            vec![
+                "core",
+                "-h",
+                "https://example.com",
+                "-k",
+                "token",
+                "--check-config",
+            ],
+        ] {
+            assert!(Cli::try_parse_from(args).is_err());
+        }
+    }
+
+    #[test]
     fn only_file_selection_and_utility_arguments_are_accepted() {
         assert_eq!(
-            Cli::try_parse_from(["core", "-c", "custom.toml"])
+            Cli::try_parse_from(["core", "-c", "custom.toml", "--check-config"])
                 .unwrap()
                 .config_path()
                 .unwrap(),
@@ -492,7 +492,7 @@ mod tests {
             assert!(Cli::try_parse_from(args).is_err());
         }
         assert!(
-            Cli::try_parse_from(["core", "-c", "-"])
+            Cli::try_parse_from(["core", "-c", "-", "--check-config"])
                 .unwrap()
                 .config_path()
                 .is_err()

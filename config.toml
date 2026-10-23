@@ -1,12 +1,12 @@
 # EasyTier Core 全量配置模板（中文注释）
 # 使用前请修改 network_identity 中的网络名称和密钥；可选功能默认保持注释。
-# 启动：easytier-core，默认读取【可执行文件所在目录】的 config.toml。
-# 指定文件：easytier-core -c /path/to/custom.toml
+# 托管启动：easytier-core -h https://管理服务地址 -k 注册token
+# 在服务端 Web 填写网络配置并同意接入；本文件用于参考及离线校验。
 # 检查配置：easytier-core -c /path/to/custom.toml --check-config
-# 只支持 TOML 文件；不再接受网络、日志等启动参数，也不读取 ET_* / RUST_LOG。
+# 网络配置通过服务端下发 TOML；客户端不读取 ET_* / RUST_LOG。
 # 文件中的 $VAR、${VAR}、~ 均按字面值处理，不做环境变量或主目录展开。
 # -c 的相对路径相对于启动工作目录；文件内路径相对于该配置文件所在目录。
-# 修改配置后重启进程生效；日志及 [core] 设置只从主配置文件读取。
+# 在 Web 保存后客户端自动应用；托管配置不能包含日志、[core] 或 credential_file。
 # “全量”指覆盖当前模型的所有可配置项；示例值不一定是默认值。
 # 某些功能需要编译时启用对应 feature，并受操作系统能力限制。
 
